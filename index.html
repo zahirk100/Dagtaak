@@ -1,0 +1,2559 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dagtaak — AI Planner voor ZZP'ers</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f2ee;--sf:#fff;--sf2:#f0ede8;--br:#e4dfd8;--br2:#ccc8c0;
+  --ac:#2d6a4f;--acl:#e8f5ee;--acm:#52b788;
+  --tx:#1a1916;--tx2:#4a4740;--mu:#8a8680;
+  --dan:#c0392b;--danl:#fdf0ee;--wrn:#b07d2a;--wrnl:#fdf6e8;
+  --inf:#1a5f9c;--pur:#6b3fa0;--purl:#f3eeff;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+  --sh2:0 4px 20px rgba(0,0,0,.1);
+  --sidebar:240px; --nh:60px;
+}
+/* Dark mode */
+[data-theme="dark"]{
+  --bg:#0e0f0f;--sf:#161718;--sf2:#1e1f20;--br:#2a2b2c;--br2:#3a3b3c;
+  --tx:#f0ede8;--tx2:#b8b4ae;--mu:#666460;
+  --acl:#0d2318;--sh:0 1px 3px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);
+}
+html,body{height:100%;background:var(--bg);overflow-x:hidden}
+body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx);font-size:14px;line-height:1.5;transition:background .2s,color .2s}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+/* ══ AUTH ══ */
+.auth-wrap{position:fixed;inset:0;z-index:900;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+.auth-wrap.hidden{display:none}
+.auth-logo{font-family:'Fraunces',serif;font-size:44px;font-weight:600;color:var(--tx);margin-bottom:4px;text-align:center}
+.auth-logo span{color:var(--ac)}
+.auth-sub{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:32px;text-align:center}
+.auth-card{background:var(--sf);border:1px solid var(--br);border-radius:20px;padding:24px;width:100%;max-width:400px;box-shadow:var(--sh2)}
+.auth-tabs{display:flex;background:var(--sf2);border-radius:10px;padding:3px;margin-bottom:20px;gap:3px}
+.auth-tab{flex:1;padding:9px;border-radius:8px;border:none;background:none;font-size:13px;font-weight:600;color:var(--mu);transition:all .15s}
+.auth-tab.active{background:var(--sf);color:var(--tx);box-shadow:var(--sh)}
+.auth-err{background:var(--danl);color:var(--dan);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px;display:none}
+.auth-pane{display:none}.auth-pane.active{display:block}
+.auth-demo{display:block;width:100%;margin-top:8px;padding:11px;border-radius:9px;border:1.5px dashed var(--br2);background:var(--sf2);color:var(--tx2);font-size:13px;font-weight:600;text-align:center;cursor:pointer;transition:all .12s}
+.auth-demo:hover,.auth-demo:active{border-color:var(--ac);color:var(--ac)}
+.quick-users{margin-top:16px;border-top:1px solid var(--br);padding-top:14px}
+.quick-lbl{font-size:10px;color:var(--mu);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.quick-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--sf2);border-radius:10px;margin-bottom:6px;cursor:pointer;border:1px solid transparent;transition:all .12s}
+.quick-chip:hover,.quick-chip:active{border-color:var(--ac);background:var(--acl)}
+.quick-av{width:32px;height:32px;border-radius:8px;background:var(--acl);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
+.quick-nm{font-size:13px;font-weight:600;color:var(--tx)}
+.quick-em{font-size:11px;color:var(--mu)}
+
+/* ══ ONBOARDING ══ */
+.ob-wrap{position:fixed;inset:0;z-index:850;background:var(--sf);display:flex;flex-direction:column;overflow:hidden}
+.ob-wrap.hidden{display:none}
+.ob-pips{display:flex;gap:4px;padding:16px 20px 0;flex-shrink:0}
+.ob-pip{flex:1;height:3px;border-radius:2px;background:var(--br);transition:background .3s}
+.ob-pip.done{background:var(--ac)}
+.ob-slides{display:flex;flex:1;overflow:hidden}
+.ob-slide{flex-shrink:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px;text-align:center}
+.ob-emoji{font-size:64px;margin-bottom:16px;animation:bob 2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.ob-title{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:var(--tx);margin-bottom:10px;line-height:1.2}
+.ob-body{font-size:14px;color:var(--tx2);line-height:1.7;max-width:340px;margin-bottom:20px}
+.ob-tips{background:var(--sf2);border-radius:14px;padding:14px;width:100%;max-width:360px;text-align:left}
+.ob-tip{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--tx2);margin-bottom:8px}
+.ob-tip:last-child{margin-bottom:0}
+.ob-tip-ico{font-size:16px;flex-shrink:0;margin-top:1px}
+.ob-footer{padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;border-top:1px solid var(--br);flex-shrink:0}
+.ob-skip{font-size:13px;color:var(--mu);font-weight:600;border:none;background:none;padding:8px}
+
+/* ══ LAYOUT ══ */
+.app-wrap{display:none}
+.app-wrap.visible{display:flex;min-height:100vh}
+
+/* SIDEBAR (desktop only) */
+.sidebar{width:var(--sidebar);background:var(--sf);border-right:1px solid var(--br);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:100;overflow-y:auto}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid var(--br)}
+.sb-logo-mark{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--tx)}
+.sb-logo-mark span{color:var(--ac)}
+.sb-logo-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.sb-date-card{margin:14px 12px 6px;background:linear-gradient(135deg,var(--ac),#1b4332);border-radius:12px;padding:14px 16px;color:#fff}
+.sb-date-wd{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:2px}
+.sb-date-num{font-family:'Fraunces',serif;font-size:38px;line-height:1;font-weight:300}
+.sb-date-mo{font-size:12px;opacity:.75;margin-top:2px}
+.sb-prog{padding:8px 12px 0}
+.sb-prog-lbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mu);margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+.sb-prog-track{height:4px;background:var(--br);border-radius:2px;overflow:hidden}
+.sb-prog-fill{height:100%;background:var(--ac);border-radius:2px;transition:width .5s}
+.sb-nav{padding:12px 10px 4px}
+.sb-nav-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);padding:0 8px;margin-bottom:4px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;color:var(--tx2);font-size:13.5px;font-weight:500;margin-bottom:1px;border:none;background:none;width:100%;text-align:left;cursor:pointer;transition:all .12s}
+.sb-item:hover{background:var(--sf2);color:var(--tx)}
+.sb-item.active{background:var(--acl);color:var(--ac);font-weight:700}
+.sb-item-ico{font-size:15px;width:20px;text-align:center}
+.sb-badge{margin-left:auto;background:var(--ac);color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:500}
+.sb-badge.red{background:var(--dan)}
+.sb-clients{padding:10px 12px;margin-top:auto;border-top:1px solid var(--br)}
+.sb-cl-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;transition:background .12s;margin-bottom:2px}
+.sb-cl-row:hover{background:var(--sf2)}
+.sb-cl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sb-cl-nm{font-size:12.5px;color:var(--tx);font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-cl-hrs{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--mu);background:var(--sf2);padding:1px 5px;border-radius:4px}
+
+/* MAIN CONTENT */
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* TOP BAR */
+.topbar{position:sticky;top:0;background:var(--sf);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;z-index:90}
+.tb-logo{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--tx);display:none}
+.tb-logo span{color:var(--ac)}
+.tb-title{font-family:'Fraunces',serif;font-size:17px;font-weight:600;color:var(--tx)}
+.tb-r{display:flex;gap:8px;align-items:center}
+.tb-clock{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mu);background:var(--sf2);padding:4px 8px;border-radius:6px;border:1px solid var(--br)}
+.tb-av{width:28px;height:28px;border-radius:7px;background:var(--acl);border:1px solid #b7dfc8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--ac);cursor:pointer}
+.dark-tog{width:30px;height:30px;border-radius:7px;border:1px solid var(--br2);background:var(--sf2);color:var(--mu);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer}
+
+/* BOTTOM NAV (mobile) */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--br);display:flex;z-index:200;height:var(--nh);padding-bottom:env(safe-area-inset-bottom,0px)}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;color:var(--mu);padding:6px 2px;position:relative;transition:color .15s}
+.bn.active{color:var(--ac)}
+.bn-ico{font-size:19px;line-height:1}
+.bn-lbl{font-size:9px;font-weight:600}
+.bn-dot{position:absolute;top:7px;right:calc(50% - 13px);width:7px;height:7px;background:var(--dan);border-radius:50%;border:2px solid var(--sf);display:none}
+
+/* PAGE CONTENT */
+.pages{flex:1;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+.page{display:none;padding:12px 14px}
+.page.active{display:block}
+
+/* DESKTOP: sidebar visible, no bottom nav */
+@media(min-width:768px){
+  .sidebar{display:flex}
+  .main-area{margin-left:var(--sidebar)}
+  .bnav{display:none}
+  .pages{padding-bottom:0}
+  .fab{display:none!important}
+  .tb-logo{display:block}
+  .tb-title{display:none}
+  .page{padding:20px 24px}
+  .stat-row{grid-template-columns:repeat(4,1fr)}
+  .page-grid{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+}
+/* MOBILE: no sidebar */
+@media(max-width:767px){
+  .sidebar{display:none}
+  .pages{padding-bottom:calc(var(--nh)+8px)}
+}
+
+/* ══ BUTTONS ══ */
+.btn{padding:9px 15px;border-radius:10px;font-size:13px;font-weight:600;border:none;transition:all .12s;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.btn-ghost{background:var(--sf);color:var(--tx2);border:1px solid var(--br2)}
+.btn-ghost:hover,.btn-ghost:active{border-color:var(--ac);color:var(--ac)}
+.btn-ac{background:var(--ac);color:#fff}.btn-ac:hover,.btn-ac:active{background:#1b4332;transform:scale(.97)}
+.btn-dan{background:var(--dan);color:#fff}
+.btn-sm{padding:6px 11px;font-size:12px;border-radius:8px}
+.btn-blk{width:100%;justify-content:center}
+
+/* ══ CARDS & STATS ══ */
+.card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;box-shadow:var(--sh);margin-bottom:10px}
+.card-ttl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;font-weight:500}
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.stat-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.sc{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px;box-shadow:var(--sh)}
+.sc-v{font-family:'Fraunces',serif;font-size:22px;font-weight:600;line-height:1;color:var(--tx)}
+.sc-v.g{color:var(--ac)}.sc-v.o{color:var(--wrn)}.sc-v.b{color:var(--inf)}.sc-v.r{color:var(--dan)}.sc-v.p{color:var(--pur)}
+.sc-l{font-size:11px;color:var(--mu);margin-top:2px;font-weight:500}
+.sc-d{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--acm);margin-top:1px}
+
+/* ══ AI PANEL ══ */
+.ai-pan{background:var(--sf);border:1px solid #b7dfc8;border-radius:14px;padding:14px;margin-bottom:10px}
+.ai-hd{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.ai-badge{background:var(--ac);color:#fff;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;padding:3px 8px;border-radius:20px;text-transform:uppercase}
+.ai-ttl{font-family:'Fraunces',serif;font-size:14px;color:var(--tx);font-weight:600}
+.ai-msg{font-size:13px;color:var(--tx2);line-height:1.6;margin-bottom:10px}
+.ai-msg strong{color:var(--tx);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--acl);border:1px solid #b7dfc8;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--ac);font-weight:600;cursor:pointer;transition:all .12s}
+.chip:hover,.chip:active{background:var(--ac);color:#fff}
+
+/* ══ FILTERS & SECTION HEADER ══ */
+.frow{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px;padding-bottom:2px}
+.frow::-webkit-scrollbar{display:none}
+.ftab{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;border:none;background:none;color:var(--mu);white-space:nowrap;flex-shrink:0;cursor:pointer}
+.ftab.active{background:var(--sf2);color:var(--tx)}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sec-ttl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);font-weight:500}
+
+/* ══ TASKS ══ */
+.tlist{display:flex;flex-direction:column;gap:7px}
+.tc{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px;display:flex;align-items:flex-start;gap:10px;box-shadow:var(--sh);cursor:pointer;animation:fu .22s ease both;transition:all .12s}
+.tc:hover{box-shadow:var(--sh2);transform:translateY(-1px)}
+.tc:active{transform:scale(.98)}
+.tc.done{opacity:.42}.tc.done .tn{text-decoration:line-through;color:var(--mu)}
+.tc.urgent{border-left:3px solid var(--dan)}.tc.medium{border-left:3px solid var(--wrn)}.tc.low{border-left:3px solid var(--br2)}
+.tc.recurring{border-right:3px solid var(--pur)}
+@keyframes fu{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.chk{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--br2);flex-shrink:0;background:var(--sf);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;margin-top:1px;transition:all .12s}
+.chk:active{border-color:var(--ac)}.chk.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.tb{flex:1;min-width:0}
+.tn{font-size:13.5px;font-weight:600;color:var(--tx);line-height:1.3}
+.ts{display:flex;gap:5px;align-items:center;margin-top:3px;flex-wrap:wrap}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px}
+.tsm{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mu)}
+.tr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.trev{font-family:'Fraunces',serif;font-size:13px;font-weight:600;color:var(--ac)}
+.pbtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--br2);background:var(--sf);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tx2);cursor:pointer;transition:all .12s}
+.pbtn:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+.pbtn.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(var(--nh)+12px);right:14px;width:52px;height:52px;border-radius:50%;background:var(--ac);color:#fff;border:none;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(45,106,79,.38);z-index:190;cursor:pointer}
+.fab:active{transform:scale(.9);background:#1b4332}
+
+/* Timer: mobiel in linkerkolom, desktop in rechterkolom */
+.timer-mobile-only{display:block}
+.desktop-only-col{display:none}
+@media(min-width:768px){
+  .timer-mobile-only{display:none}
+  .desktop-only-col{display:block}
+}
+.timer-card{background:linear-gradient(135deg,var(--ac),#1b4332);border-radius:14px;padding:16px;margin-bottom:10px;color:#fff;text-align:center}
+.timer-big{font-family:'Fraunces',serif;font-size:50px;font-weight:300;letter-spacing:-2px;line-height:1;margin:4px 0}
+.timer-nm{font-size:11.5px;opacity:.7;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.timer-prog{height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden;margin-bottom:12px}
+.timer-fill{height:100%;background:#fff;border-radius:2px;transition:width 1s linear}
+.tctrls{display:flex;gap:6px;justify-content:center}
+.tbtn{padding:8px 16px;border-radius:9px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.tbtn.primary{background:#fff;color:var(--ac);border-color:#fff}
+.tbtn:active{transform:scale(.95)}
+
+/* ══ WEEK ══ */
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.week-nav-title{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--tx)}
+.week-nav-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--br2);background:var(--sf);color:var(--tx2);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.week-nav-btn:active{background:var(--acl);color:var(--ac)}
+.week-strip{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:12px;padding-bottom:4px}
+.week-strip::-webkit-scrollbar{display:none}
+.wday{flex-shrink:0;width:72px;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .15s}
+.wday:hover{border-color:var(--ac)}
+.wday.today{background:var(--acl);border-color:#b7dfc8}
+.wday.sel{background:var(--ac);border-color:var(--ac)}
+.wday.sel .wdn,.wday.sel .wdnum,.wday.sel .wdlbl{color:#fff}
+.wdn{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px}
+.wdnum{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--tx);line-height:1}
+.wday.today .wdnum{color:var(--ac)}
+.wdlbl{font-size:10px;color:var(--mu);margin-top:3px}
+
+/* LOG */
+.log-list{display:flex;flex-direction:column;gap:6px}
+.log-item{background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:var(--sh)}
+.log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.log-body{flex:1;min-width:0}
+.log-nm{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-meta{font-size:11px;color:var(--mu);margin-top:1px}
+.log-amt{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--ac)}
+.log-del{width:26px;height:26px;border-radius:7px;border:1px solid var(--br2);background:var(--sf2);color:var(--mu);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.log-del:hover{background:var(--danl);color:var(--dan)}
+
+/* ══ CLIENTS ══ */
+.client-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.ccard{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;box-shadow:var(--sh)}
+.cc-hd{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.cc-av{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.cc-nm{font-size:15px;font-weight:700;color:var(--tx)}.cc-tp{font-size:11.5px;color:var(--mu)}
+.cc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.cs{background:var(--sf2);border-radius:8px;padding:8px;text-align:center}
+.csv{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--tx)}
+.csl{font-size:10px;color:var(--mu);margin-top:1px}
+.cc-act{display:flex;gap:6px}
+
+/* ══ INVOICES ══ */
+.inv-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:13px;margin-bottom:8px;box-shadow:var(--sh)}
+.inv-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.inv-num{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--mu)}
+.inv-client{font-size:14px;font-weight:700;color:var(--tx);margin-top:1px}
+.inv-desc{font-size:12px;color:var(--tx2);margin-top:1px}
+.inv-ft{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--br)}
+.inv-amt{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--tx)}
+.inv-date{font-size:10.5px;color:var(--mu);font-family:'JetBrains Mono',monospace}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.b-paid{background:#e8f5ee;color:#1b4332}.b-open{background:var(--wrnl);color:var(--wrn)}.b-late{background:var(--danl);color:var(--dan)}
+.inv-act{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.rec-badge{display:inline-flex;align-items:center;gap:3px;background:var(--purl);color:var(--pur);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-top:4px}
+
+/* INVOICE PREVIEW */
+.inv-prev{background:#fff;border:1.5px solid var(--br2);border-radius:10px;padding:16px;margin-bottom:12px}
+.ip-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--ac)}
+.ip-logo{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--ac)}
+.ip-title{font-size:17px;font-weight:700;color:#1a1916;text-align:right}
+.ip-table{width:100%;border-collapse:collapse;margin-bottom:10px}
+.ip-table th{text-align:left;font-size:9.5px;color:#8a8680;text-transform:uppercase;letter-spacing:.8px;padding:4px 0;border-bottom:1px solid #e4dfd8}
+.ip-table td{padding:6px 0;border-bottom:1px solid #f0ede8;font-size:12px;color:#4a4740}
+.ip-row{display:flex;justify-content:space-between;font-size:12px;color:#4a4740;padding:2px 0}
+.ip-total{display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--ac);margin-top:4px}
+.ip-total-lbl{font-weight:700;color:#1a1916}
+.ip-total-amt{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--ac)}
+
+/* ══ PROFIT / GOAL ══ */
+.profit-card{background:linear-gradient(135deg,#1b4332,var(--ac));border-radius:14px;padding:16px;margin-bottom:12px;color:#fff}
+.profit-big{font-family:'Fraunces',serif;font-size:36px;font-weight:300;letter-spacing:-1px;line-height:1}
+.profit-sub{font-size:12px;opacity:.75;margin-top:3px}
+.profit-row{display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.2)}
+.profit-item{text-align:center}
+.profit-item-val{font-family:'Fraunces',serif;font-size:17px;font-weight:600}
+.profit-item-lbl{font-size:10px;opacity:.7;margin-top:1px}
+.goal-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--sh)}
+.goal-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.goal-amount{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:var(--ac)}
+.goal-label{font-size:11px;color:var(--mu);margin-top:2px}
+.goal-pct{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:var(--tx);text-align:right}
+.prog-track{height:8px;background:var(--br);border-radius:4px;overflow:hidden;margin-top:6px}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--acm),var(--ac));border-radius:4px;transition:width .6s}
+
+/* PROFILE */
+.prof-hd{background:linear-gradient(135deg,var(--ac),#1b4332);border-radius:14px;padding:18px;margin-bottom:10px;color:#fff;position:relative}
+.prof-logo{width:56px;height:56px;border-radius:12px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:10px;overflow:hidden;cursor:pointer}
+.prof-logo img{width:100%;height:100%;object-fit:cover}
+.prof-nm{font-family:'Fraunces',serif;font-size:20px;font-weight:600;line-height:1.1}
+.prof-tag-txt{font-size:13px;opacity:.75;margin-top:3px}
+.prof-edit-btn{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer}
+.prof-detail{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--br)}
+.prof-detail:last-child{border-bottom:none}
+.prof-ico{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.prof-val{font-size:13px;color:var(--tx2);font-weight:500}
+.prof-lbl-s{font-size:10px;color:var(--mu)}
+
+/* EXPENSES */
+.exp-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px;margin-bottom:7px;display:flex;align-items:center;gap:10px;box-shadow:var(--sh)}
+.exp-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.exp-body{flex:1;min-width:0}
+.exp-nm{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exp-meta{font-size:11px;color:var(--mu);margin-top:1px}
+.exp-amt{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--dan)}
+.exp-del{width:26px;height:26px;border-radius:7px;border:1px solid var(--br2);background:var(--sf2);color:var(--mu);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.exp-del:hover{background:var(--danl);color:var(--dan)}
+
+/* BARS */
+.bars{display:flex;align-items:flex-end;gap:5px;height:90px;margin:8px 0 6px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bar-f{width:100%;border-radius:4px 4px 0 0;background:var(--acm);min-height:2px;transition:height .5s}
+.bar-f.cur{background:var(--ac)}
+.bar-l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mu)}
+.bar-v{font-size:9px;color:var(--tx2);font-weight:600}
+.rb-row{margin-bottom:8px}
+.rb-top{display:flex;justify-content:space-between;margin-bottom:3px}
+.rb-nm{font-size:12px;font-weight:600;color:var(--tx2)}
+.rb-amt{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:500}
+.rb-track{height:4px;background:var(--sf2);border-radius:2px;overflow:hidden}
+.rb-fill{height:100%;border-radius:2px}
+
+/* ALERT */
+.alert-banner{background:var(--danl);border:1px solid #f5b5ae;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px}
+.alert-icon{font-size:18px;flex-shrink:0}
+.alert-title{font-size:13px;font-weight:700;color:var(--dan)}
+.alert-msg{font-size:12px;color:var(--tx2);margin-top:2px}
+
+/* ══ OVERLAY / SHEET ══ */
+.ov{position:fixed;inset:0;background:rgba(26,25,22,.42);backdrop-filter:blur(4px);z-index:400;opacity:0;pointer-events:none;transition:opacity .2s}
+.ov.open{opacity:1;pointer-events:all}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-radius:20px 20px 0 0;z-index:401;transform:translateY(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);max-height:94vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet.open{transform:translateY(0)}
+@media(min-width:768px){
+  .sheet{left:auto;right:20px;bottom:20px;border-radius:16px;max-height:88vh;width:460px;transform:translateY(20px) scale(.96);opacity:0;pointer-events:none;transition:transform .22s ease,opacity .22s ease}
+  .sheet.open{transform:translateY(0) scale(1);opacity:1;pointer-events:all}
+  .ov{display:none}
+  .ov.open{display:block}
+}
+.s-drag{width:36px;height:4px;background:var(--br2);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+@media(min-width:768px){.s-drag{display:none}}
+.s-hd{padding:12px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--br);flex-shrink:0}
+.s-ttl{font-family:'Fraunces',serif;font-size:17px;font-weight:600;color:var(--tx)}
+.s-x{width:28px;height:28px;border-radius:7px;border:1px solid var(--br2);background:var(--sf2);color:var(--mu);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0}
+.s-body{padding:14px 16px;overflow-y:auto;flex:1}
+
+/* FORMS */
+.fg{margin-bottom:11px}
+.flbl{font-size:11.5px;font-weight:600;color:var(--tx2);margin-bottom:4px;display:block}
+.inp{width:100%;border:1px solid var(--br2);border-radius:9px;padding:10px 12px;font-size:14px;color:var(--tx);background:var(--bg);outline:none;transition:border-color .12s}
+.inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(45,106,79,.1)}
+.inp::placeholder{color:var(--mu)}
+.sel{width:100%;border:1px solid var(--br2);border-radius:9px;padding:10px 12px;font-size:14px;color:var(--tx);background:var(--bg);outline:none;cursor:pointer}
+.ta{width:100%;border:1px solid var(--br2);border-radius:9px;padding:10px 12px;font-size:14px;color:var(--tx);background:var(--bg);outline:none;resize:vertical;line-height:1.5}
+.ta::placeholder,.inp::placeholder{color:var(--mu)}
+.ta:focus,.inp:focus,.sel:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(45,106,79,.1)}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.prio-set{display:flex;gap:4px}
+.pb{flex:1;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--br2);background:var(--sf);color:var(--mu);text-align:center;cursor:pointer}
+.pb.u{background:var(--danl);color:var(--dan);border-color:#f5b5ae}
+.pb.m{background:var(--wrnl);color:var(--wrn);border-color:#f5dca0}
+.pb.l{background:var(--sf2);color:var(--tx2);border-color:var(--br2)}
+.rev-preview{background:var(--acl);border-radius:9px;padding:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--br)}
+.toggle-lbl{font-size:13px;font-weight:600;color:var(--tx2)}
+.toggle-sub-txt{font-size:11px;color:var(--mu)}
+.toggle{width:44px;height:24px;border-radius:12px;border:none;background:var(--br2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--pur)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:10px;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on::after{transform:translateX(20px)}
+.sub-list{display:flex;flex-direction:column;gap:4px;margin-bottom:7px}
+.subtask{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf2);border-radius:8px}
+.sub-chk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--br2);background:var(--sf);display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;flex-shrink:0;transition:all .12s;cursor:pointer}
+.sub-chk.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.sub-add{display:flex;gap:6px}
+.inv-lines-wrap{display:flex;flex-direction:column;gap:5px;margin-bottom:6px}
+.inv-line-row{background:var(--sf2);border-radius:8px;padding:8px 10px;display:flex;gap:6px;align-items:center}
+.inv-line-row input{border:none;background:transparent;font-size:13px;color:var(--tx);outline:none;min-width:0}
+.inv-line-row input::placeholder{color:var(--mu)}
+.inv-line-del{width:24px;height:24px;border-radius:6px;border:none;background:var(--br2);color:var(--mu);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ══ AI MODAL ══ */
+.ai-ov{position:fixed;inset:0;background:rgba(26,25,22,.45);backdrop-filter:blur(6px);z-index:500;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.ai-ov.open{opacity:1;pointer-events:all}
+.ai-modal{background:var(--sf);border-radius:20px 20px 0 0;width:100%;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);max-height:88vh;padding-bottom:env(safe-area-inset-bottom,0px)}
+.ai-ov.open .ai-modal{transform:translateY(0)}
+@media(min-width:768px){
+  .ai-ov{align-items:center;justify-content:center}
+  .ai-modal{border-radius:18px;width:560px;max-height:80vh;transform:translateY(20px) scale(.96)}
+  .ai-ov.open .ai-modal{transform:translateY(0) scale(1)}
+}
+.ai-drag{width:36px;height:4px;background:var(--br2);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+@media(min-width:768px){.ai-drag{display:none}}
+.ai-mhd{padding:12px 16px 10px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--br);flex-shrink:0}
+.ai-mtitle{font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--tx)}
+.ai-msub{font-size:12px;color:var(--mu);margin-top:1px}
+.qps{display:flex;gap:5px;overflow-x:auto;padding:9px 16px;border-bottom:1px solid var(--br);-webkit-overflow-scrolling:touch;flex-shrink:0}
+.qps::-webkit-scrollbar{display:none}
+.qp{padding:6px 11px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid var(--br2);background:var(--sf);color:var(--tx2);white-space:nowrap;flex-shrink:0;cursor:pointer}
+.qp:hover,.qp:active{background:var(--acl);color:var(--ac)}
+
+/* API KEY BANNER */
+.api-key-banner{background:var(--wrnl);border:1px solid #f5dca0;border-radius:10px;padding:12px;margin-bottom:10px;font-size:13px;color:var(--tx2)}
+.api-key-banner strong{color:var(--wrn);font-weight:700}
+.api-key-row{display:flex;gap:8px;margin-top:8px}
+
+.chat-area{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;min-height:100px}
+.msg{max-width:87%;padding:10px 13px;border-radius:12px;font-size:13.5px;line-height:1.6;animation:fu .2s ease both}
+.msg.u{background:var(--ac);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;font-weight:500}
+.msg.ai{background:var(--sf2);color:var(--tx);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--br)}
+.msg.ph{color:var(--mu);font-style:italic;align-self:center;background:none;font-size:12.5px;text-align:center}
+.typing{display:inline-flex;gap:4px;align-items:center;padding:10px 13px;background:var(--sf2);border:1px solid var(--br);border-radius:12px;border-bottom-left-radius:4px;align-self:flex-start}
+.td{width:6px;height:6px;border-radius:50%;background:var(--mu);animation:bop 1.2s infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes bop{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-4px);opacity:1}}
+.ai-inp-row{display:flex;gap:8px;padding:10px 16px 12px;border-top:1px solid var(--br);flex-shrink:0}
+.ai-inp{flex:1;border:1px solid var(--br2);border-radius:10px;padding:10px 13px;font-size:14px;color:var(--tx);background:var(--bg);outline:none}
+.ai-inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(45,106,79,.1)}
+
+/* TOAST */
+.toast{position:fixed;bottom:calc(var(--nh)+14px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--tx);color:#fff;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:500;z-index:700;white-space:nowrap;opacity:0;transition:all .25s ease;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+@media(min-width:768px){.toast{bottom:24px}}
+
+.empty{text-align:center;padding:28px 12px;color:var(--mu)}
+.empty-ico{font-size:32px;margin-bottom:6px}
+.divider{height:1px;background:var(--br);margin:12px 0}
+::-webkit-scrollbar{display:none}
+.page-grid{display:block}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div class="auth-wrap" id="auth-wrap">
+  <div class="auth-logo">Dag<span>taak</span></div>
+  <div class="auth-sub">AI Planner voor ZZP'ers</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="authTab('login',this)">Inloggen</button>
+      <button class="auth-tab" onclick="authTab('register',this)">Registreren</button>
+    </div>
+    <div class="auth-err" id="auth-err"></div>
+    <div class="auth-pane active" id="pane-login">
+      <div class="fg"><label class="flbl">E-mailadres</label><input class="inp" id="login-email" type="email" placeholder="naam@voorbeeld.nl" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="fg"><label class="flbl">Wachtwoord</label><input class="inp" id="login-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-ac btn-blk" onclick="doLogin()" style="margin-bottom:8px">Inloggen →</button>
+      <button class="auth-demo" style="background:#fff;border:1.5px solid #e0e0e0;color:#333;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px" onclick="doGoogleLogin()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Inloggen met Google
+      </button>
+      <div id="quick-users"></div>
+    </div>
+    <div class="auth-pane" id="pane-register">
+      <div class="fg"><label class="flbl">Jouw naam</label><input class="inp" id="reg-name" placeholder="Jan de Vries"></div>
+      <div class="fg"><label class="flbl">E-mailadres</label><input class="inp" id="reg-email" type="email" placeholder="naam@voorbeeld.nl"></div>
+      <div class="fg"><label class="flbl">Wachtwoord (min. 6 tekens)</label><input class="inp" id="reg-pw" type="password" placeholder="••••••••"></div>
+      <div class="fg"><label class="flbl">Bedrijfsnaam</label><input class="inp" id="reg-bedrijf" placeholder="Mijn ZZP Bedrijf"></div>
+      <button class="btn btn-ac btn-blk" onclick="doRegister()">Account aanmaken →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ONBOARDING ══ -->
+<div class="ob-wrap hidden" id="ob-wrap">
+  <div class="ob-pips" id="ob-pips"></div>
+  <div class="ob-slides" id="ob-slides"></div>
+  <div class="ob-footer">
+    <button class="ob-skip" onclick="finishOnboard()">Overslaan</button>
+    <button class="btn btn-ac" style="flex:1;justify-content:center" id="ob-btn" onclick="nextSlide()">Volgende →</button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div class="app-wrap" id="app-wrap">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-mark">Dag<span>taak</span></div>
+      <div class="sb-logo-sub">AI Planner · ZZP</div>
+    </div>
+    <div class="sb-date-card">
+      <div class="sb-date-wd" id="sb-wd">Maandag</div>
+      <div class="sb-date-num" id="sb-day">1</div>
+      <div class="sb-date-mo" id="sb-mo">April 2026</div>
+    </div>
+    <div class="sb-prog">
+      <div class="sb-prog-lbl"><span>Dagvoortgang</span><span id="sb-prog-lbl">0/0</span></div>
+      <div class="sb-prog-track"><div class="sb-prog-fill" id="sb-prog-fill" style="width:0%"></div></div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-nav-lbl">Menu</div>
+      <button class="sb-item active" id="sb-today" onclick="goPage('today',this,'Vandaag')"><span class="sb-item-ico">◉</span>Vandaag<span class="sb-badge" id="sb-badge-today">0</span></button>
+      <button class="sb-item" id="sb-week" onclick="goPage('week',this,'Week')"><span class="sb-item-ico">▦</span>Week</button>
+      <button class="sb-item" id="sb-clients" onclick="goPage('clients',this,'Klanten')"><span class="sb-item-ico">◈</span>Klanten</button>
+      <button class="sb-item" id="sb-invoices" onclick="goPage('invoices',this,'Facturen')"><span class="sb-item-ico">◇</span>Facturen<span class="sb-badge red" id="sb-badge-inv" style="display:none">!</span></button>
+      <button class="sb-item" id="sb-expenses" onclick="goPage('expenses',this,'Uitgaven')"><span class="sb-item-ico">💸</span>Uitgaven</button>
+      <button class="sb-item" id="sb-profile" onclick="goPage('profile',this,'Profiel')"><span class="sb-item-ico">◻</span>Profiel</button>
+    </div>
+    <div class="sb-clients" id="sb-clients-list"></div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <div class="topbar">
+      <div class="tb-logo">Dag<span>taak</span></div>
+      <div class="tb-title" id="tb-title">Vandaag</div>
+      <div class="tb-r">
+        <div class="tb-clock" id="clock">00:00</div>
+        <button class="dark-tog" onclick="toggleDark()" id="dark-btn" title="Dark mode">🌙</button>
+        <button class="btn btn-ghost btn-sm" onclick="openAI()">✦ AI</button>
+        <div class="tb-av" id="tb-av" onclick="openSheet('account')">?</div>
+      </div>
+    </div>
+
+    <div class="pages">
+
+      <!-- VANDAAG -->
+      <div class="page active" id="page-today">
+        <div id="alerts-today"></div>
+        <div class="page-grid">
+          <div>
+            <div class="stat-row">
+              <div class="sc"><div class="sc-v g" id="s-open">0</div><div class="sc-l">Open taken</div><div class="sc-d" id="s-urgent">0 urgent</div></div>
+              <div class="sc"><div class="sc-v o" id="s-rev">€0</div><div class="sc-l">Omzet maand</div><div class="sc-d" id="s-goal-pct">0% van doel</div></div>
+              <div class="sc"><div class="sc-v" id="s-done">0</div><div class="sc-l">Afgerond</div><div class="sc-d" id="s-pct">0%</div></div>
+              <div class="sc"><div class="sc-v b" id="s-earned">€0</div><div class="sc-l">Verdiend vandaag</div><div class="sc-d" id="s-hrs">0u</div></div>
+            </div>
+            <!-- Timer — zichtbaar op mobiel, verborgen op desktop (staat rechts) -->
+            <div class="timer-card timer-mobile-only">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:2px">Urenteller</div>
+              <div class="timer-big" id="t-disp">00:00</div>
+              <div class="timer-nm" id="t-nm">Tik ▶ bij een taak om te starten</div>
+              <div class="timer-prog"><div class="timer-fill" id="t-fill" style="width:0%"></div></div>
+              <div class="tctrls">
+                <button class="tbtn primary" id="t-start" onclick="tAct('start')">▶ Start</button>
+                <button class="tbtn" onclick="tAct('pause')">⏸</button>
+                <button class="tbtn" onclick="tAct('reset')">↺ Stop</button>
+              </div>
+            </div>
+            <div class="ai-pan">
+              <div class="ai-hd"><span class="ai-badge">✦ AI</span><span class="ai-ttl">Jouw dag in 60 sec</span></div>
+              <div class="ai-msg">Je hebt <strong>2 urgente taken</strong> vandaag. Begin met wireframes — daarna offerte versturen.</div>
+              <div class="chips">
+                <div class="chip" onclick="startById(1)">▶ Wireframes</div>
+                <div class="chip" onclick="startById(4)">▶ Offerte</div>
+                <div class="chip" onclick="openAI()">✦ Meer advies</div>
+              </div>
+            </div>
+            <div class="frow" id="task-filters">
+              <button class="ftab active" onclick="setFilter('all',this)">Alle</button>
+              <button class="ftab" onclick="setFilter('open',this)">Open</button>
+              <button class="ftab" onclick="setFilter('done',this)">Gedaan</button>
+              <button class="ftab" onclick="setFilter('urgent',this)">🔴 Urgent</button>
+              <button class="ftab" onclick="setFilter('recurring',this)">🔄 Herhalend</button>
+            </div>
+            <div class="tlist" id="task-list"></div>
+          </div>
+          <!-- Rechterkolom alleen op desktop -->
+          <div class="desktop-only-col">
+            <div class="timer-card">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:2px">Urenteller</div>
+              <div class="timer-big" id="t-disp-d">00:00</div>
+              <div class="timer-nm" id="t-nm-d">Tik ▶ bij een taak om te starten</div>
+              <div class="timer-prog"><div class="timer-fill" id="t-fill-d" style="width:0%"></div></div>
+              <div class="tctrls">
+                <button class="tbtn primary" id="t-start-d" onclick="tAct('start')">▶ Start</button>
+                <button class="tbtn" onclick="tAct('pause')">⏸</button>
+                <button class="tbtn" onclick="tAct('reset')">↺ Stop</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-ttl">Omzet per klant</div>
+              <div id="rev-breakdown-today"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK -->
+      <div class="page" id="page-week">
+        <div class="week-nav">
+          <button class="week-nav-btn" onclick="shiftWeek(-1)">‹</button>
+          <div class="week-nav-title" id="week-title">Week</div>
+          <button class="week-nav-btn" onclick="shiftWeek(1)">›</button>
+        </div>
+        <div class="week-strip" id="week-strip"></div>
+        <div class="sec-hd">
+          <span class="sec-ttl" id="log-ttl">Urenlog</span>
+          <button class="btn btn-ghost btn-sm" onclick="openLogSheet()">+ Log uren</button>
+        </div>
+        <div class="log-list" id="log-list"></div>
+      </div>
+
+      <!-- KLANTEN -->
+      <div class="page" id="page-clients">
+        <div class="sec-hd" style="margin-bottom:12px">
+          <span class="sec-ttl">Klanten</span>
+          <button class="btn btn-ac btn-sm" onclick="openClientSheet()">+ Klant</button>
+        </div>
+        <div class="client-grid" id="client-cards"></div>
+      </div>
+
+      <!-- FACTUREN -->
+      <div class="page" id="page-invoices">
+        <div id="inv-alerts"></div>
+        <div class="sec-hd" style="margin-bottom:8px">
+          <span class="sec-ttl">Facturen &amp; Offertes</span>
+          <button class="btn btn-ac btn-sm" onclick="openNewInv()">+ Nieuw</button>
+        </div>
+        <div class="stat-row">
+          <div class="sc"><div class="sc-v g" id="inv-paid">€0</div><div class="sc-l">Betaald (incl. BTW)</div><div class="sc-d" id="inv-paid-excl">excl. BTW: €0</div></div>
+          <div class="sc"><div class="sc-v o" id="inv-open">€0</div><div class="sc-l">Openstaand</div><div class="sc-d" id="inv-late-count">0 te laat</div></div>
+        </div>
+        <div class="stat-row">
+          <div class="sc"><div class="sc-v b" id="inv-btw-af">€0</div><div class="sc-l">BTW af te dragen</div><div class="sc-d">Betaalde facturen</div></div>
+          <div class="sc"><div class="sc-v p" id="inv-total-count">0</div><div class="sc-l">Totaal facturen</div><div class="sc-d" id="inv-quote-count">0 offertes</div></div>
+        </div>
+        <!-- BTW kwartaal banner -->
+        <div style="background:var(--purl);border:1px solid #c9a8f0;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--pur)">📊 BTW-aangifte Q2 2026</div>
+            <div style="font-size:11px;color:var(--tx2);margin-top:2px">BTW verschuldigd: <strong id="btw-kwartaal">€0</strong> · Deadline: 31 juli</div>
+          </div>
+          <button class="btn btn-sm" style="background:var(--pur);color:#fff;flex-shrink:0" onclick="downloadBtwOverzicht()">📥 Export</button>
+        </div>
+        <div class="frow" id="inv-filters">
+          <button class="ftab active" onclick="setInvF('all',this)">Alle</button>
+          <button class="ftab" onclick="setInvF('invoice',this)">Facturen</button>
+          <button class="ftab" onclick="setInvF('quote',this)">Offertes</button>
+          <button class="ftab" onclick="setInvF('paid',this)">✓ Betaald</button>
+          <button class="ftab" onclick="setInvF('open',this)">Openstaand</button>
+          <button class="ftab" onclick="setInvF('late',this)">🔴 Te laat</button>
+        </div>
+        <div id="inv-list"></div>
+      </div>
+
+      <!-- UITGAVEN -->
+      <div class="page" id="page-expenses">
+        <div class="profit-card">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:4px">Netto winst april</div>
+          <div class="profit-big" id="profit-big">€0</div>
+          <div class="profit-sub" id="profit-sub">Omzet €0 − Kosten €0</div>
+          <div class="profit-row">
+            <div class="profit-item"><div class="profit-item-val" id="prof-margin">0%</div><div class="profit-item-lbl">Marge</div></div>
+            <div class="profit-item"><div class="profit-item-val" id="prof-tax">€0</div><div class="profit-item-lbl">IB schatting</div></div>
+            <div class="profit-item"><div class="profit-item-val" id="prof-net">€0</div><div class="profit-item-lbl">Na belasting</div></div>
+          </div>
+        </div>
+        <div class="stat-row-3">
+          <div class="sc"><div class="sc-v r" id="exp-total">€0</div><div class="sc-l">Kosten</div></div>
+          <div class="sc"><div class="sc-v p" id="exp-aftrek">€0</div><div class="sc-l">Aftrekbaar</div></div>
+          <div class="sc"><div class="sc-v" id="exp-count">0</div><div class="sc-l">Posten</div></div>
+        </div>
+        <div class="sec-hd">
+          <span class="sec-ttl">Uitgaven</span>
+          <button class="btn btn-ac btn-sm" onclick="openExpSheet()">+ Uitgave</button>
+        </div>
+        <div class="frow" id="exp-filters">
+          <button class="ftab active" onclick="setExpF('all',this)">Alle</button>
+          <button class="ftab" onclick="setExpF('💻 Software',this)">💻 Software</button>
+          <button class="ftab" onclick="setExpF('🚗 Reiskosten',this)">🚗 Reizen</button>
+          <button class="ftab" onclick="setExpF('📱 Abonnementen',this)">📱 Abos</button>
+          <button class="ftab" onclick="setExpF('🏠 Kantoor',this)">🏠 Kantoor</button>
+          <button class="ftab" onclick="setExpF('🎓 Opleiding',this)">🎓 Studie</button>
+        </div>
+        <div id="exp-list"></div>
+      </div>
+
+      <!-- PROFIEL -->
+      <div class="page" id="page-profile">
+        <div class="prof-hd">
+          <div class="prof-logo" onclick="document.getElementById('logo-inp').click()">
+            <span id="prof-emoji">🚀</span>
+            <img id="prof-img" src="" style="display:none;width:100%;height:100%;object-fit:cover">
+          </div>
+          <div class="prof-nm" id="prof-nm">Mijn Bedrijf</div>
+          <div class="prof-tag-txt" id="prof-tag">Freelancer &amp; ZZP'er</div>
+          <button class="prof-edit-btn" onclick="openSheet('prof')">✏ Bewerken</button>
+        </div>
+        <input type="file" id="logo-inp" accept="image/*" style="display:none" onchange="handleLogo(event)">
+        <div class="goal-card">
+          <div class="goal-hd">
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Maanddoel</div>
+              <div class="goal-amount" id="goal-disp">€0</div>
+              <div class="goal-label">van € <span id="goal-target">6.000</span></div>
+            </div>
+            <div style="text-align:right">
+              <div class="goal-pct" id="goal-pct">0%</div>
+              <div style="font-size:11px;color:var(--mu);margin-top:2px">bereikt</div>
+              <button class="btn btn-ghost btn-sm" onclick="openSheet('goal')" style="margin-top:6px">Aanpassen</button>
+            </div>
+          </div>
+          <div class="prog-track"><div class="prog-fill" id="goal-fill" style="width:0%"></div></div>
+        </div>
+        <div class="card"><div class="card-ttl">Bedrijfsgegevens</div><div id="prof-details"></div></div>
+        <div class="card"><div class="card-ttl">Omzet per klant (april)</div><div id="rev-breakdown"></div></div>
+        <div class="card"><div class="card-ttl">Omzet per maand (2026)</div><div class="bars" id="mini-chart"></div></div>
+      </div>
+
+    </div><!-- /pages -->
+  </div><!-- /main-area -->
+
+</div><!-- /app-wrap -->
+
+<button class="fab" id="fab" onclick="openAddTask()">+</button>
+
+<!-- BOTTOM NAV (mobile) -->
+<div class="bnav" id="bnav">
+  <button class="bn active" id="bn-today" onclick="goPage('today',this,'Vandaag')"><div class="bn-ico">◉</div><div class="bn-lbl">Vandaag</div></button>
+  <button class="bn" id="bn-week" onclick="goPage('week',this,'Week')"><div class="bn-ico">▦</div><div class="bn-lbl">Week</div></button>
+  <button class="bn" id="bn-invoices" onclick="goPage('invoices',this,'Facturen')"><div class="bn-ico">◇</div><div class="bn-lbl">Facturen</div><div class="bn-dot" id="inv-dot"></div></button>
+  <button class="bn" id="bn-expenses" onclick="goPage('expenses',this,'Uitgaven')"><div class="bn-ico">💸</div><div class="bn-lbl">Uitgaven</div></button>
+  <button class="bn" id="bn-profile" onclick="goPage('profile',this,'Profiel')"><div class="bn-ico">◻</div><div class="bn-lbl">Profiel</div></button>
+</div>
+
+<!-- ══ SHEETS ══ -->
+
+<!-- TASK -->
+<div class="ov" id="ov-task" onclick="closeSheet('task')"></div>
+<div class="sheet" id="sh-task">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl" id="sh-task-ttl">Nieuwe taak</div><button class="s-x" onclick="closeSheet('task')">✕</button></div>
+  <div class="s-body">
+    <div class="fg"><label class="flbl">Taaknaam</label><input class="inp" id="t-name" placeholder="Wat moet je doen?"></div>
+    <div class="frow2">
+      <div class="fg"><label class="flbl">Klant</label><select class="sel" id="t-client"></select></div>
+      <div class="fg"><label class="flbl">Tijd</label><input type="time" class="inp" id="t-time" value="09:00"></div>
+    </div>
+    <div class="fg"><label class="flbl">Prioriteit</label>
+      <div class="prio-set">
+        <button class="pb" id="pb-u" onclick="setPrio('urgent')">🔴 Urgent</button>
+        <button class="pb m" id="pb-m" onclick="setPrio('medium')">🟡 Normaal</button>
+        <button class="pb" id="pb-l" onclick="setPrio('low')">🟢 Laag</button>
+      </div>
+    </div>
+    <div class="frow2">
+      <div class="fg"><label class="flbl">Uren</label><input type="number" class="inp" id="t-hours" placeholder="1.5" step="0.25" oninput="calcRev()"></div>
+      <div class="fg"><label class="flbl">Tarief €/u</label><input type="number" class="inp" id="t-rate" placeholder="95" oninput="calcRev()"></div>
+    </div>
+    <div class="rev-preview"><span style="font-size:13px;font-weight:600;color:var(--tx2)">Verwachte omzet</span><span style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--ac)" id="t-rev-calc">€0</span></div>
+    <div class="fg"><label class="flbl">Notitie</label><textarea class="ta" id="t-note" rows="2" placeholder="Extra info..."></textarea></div>
+    <div class="toggle-row">
+      <div><div class="toggle-lbl">🔄 Herhalende taak</div><div class="toggle-sub-txt" id="rec-sub">Eenmalig</div></div>
+      <button class="toggle" id="rec-tog" onclick="toggleRec()"></button>
+    </div>
+    <div id="rec-opts" style="display:none;margin:8px 0">
+      <select class="sel" id="t-freq"><option value="daily">Elke dag</option><option value="weekly" selected>Elke week</option><option value="biweekly">Om de 2 weken</option><option value="monthly">Elke maand</option></select>
+    </div>
+    <div class="fg" style="margin-top:10px"><label class="flbl">Subtaken</label>
+      <div class="sub-list" id="t-subs"></div>
+      <div class="sub-add"><input class="inp" id="sub-inp" placeholder="Subtaak..." onkeydown="if(event.key==='Enter')addSub()"><button class="btn btn-ghost btn-sm" onclick="addSub()">+</button></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ac" style="flex:2;justify-content:center" onclick="saveTaskUI()">Opslaan ✓</button>
+      <button class="btn btn-dan btn-sm" id="del-task-btn" style="display:none" onclick="deleteTaskUI()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICE -->
+<div class="ov" id="ov-inv" onclick="closeSheet('inv')"></div>
+<div class="sheet" id="sh-inv">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl" id="sh-inv-ttl">Nieuwe factuur</div><button class="s-x" onclick="closeSheet('inv')">✕</button></div>
+  <div class="s-body">
+    <div class="frow2">
+      <div class="fg"><label class="flbl">Type</label><select class="sel" id="inv-type" onchange="renderInvPreview()"><option value="invoice">📄 Factuur</option><option value="quote">📋 Offerte</option></select></div>
+      <div class="fg"><label class="flbl">Status</label><select class="sel" id="inv-status"><option value="open">Openstaand</option><option value="paid">Betaald</option><option value="late">Te laat</option></select></div>
+    </div>
+    <div class="fg"><label class="flbl">Klant</label><select class="sel" id="inv-client" onchange="prefillInvClient()"></select></div>
+    <div class="fg"><label class="flbl">E-mail klant</label><input class="inp" id="inv-email" type="email" placeholder="klant@voorbeeld.nl"></div>
+    <div class="fg"><label class="flbl">Omschrijving</label><input class="inp" id="inv-desc" placeholder="Website herontwerp" oninput="renderInvPreview()"></div>
+    <div class="fg">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label class="flbl" style="margin:0">Regelitems</label>
+        <button class="btn btn-ghost btn-sm" onclick="addInvLine()">+ Regel</button>
+      </div>
+      <div class="inv-lines-wrap" id="inv-lines"></div>
+    </div>
+    <div class="fg"><label class="flbl">BTW (%)</label>
+      <select class="sel" id="inv-btw" onchange="renderInvPreview()"><option value="21">21%</option><option value="9">9%</option><option value="0">0% (vrijgesteld)</option></select>
+    </div>
+    <div class="toggle-row">
+      <div><div class="toggle-lbl">🔄 Terugkerende factuur</div><div class="toggle-sub-txt" id="inv-rec-sub">Eenmalig</div></div>
+      <button class="toggle" id="inv-rec-tog" onclick="toggleInvRec()"></button>
+    </div>
+    <div id="inv-rec-opts" style="display:none;margin:8px 0">
+      <select class="sel" id="inv-freq"><option value="monthly">Elke maand</option><option value="quarterly">Per kwartaal</option><option value="yearly">Jaarlijks</option></select>
+    </div>
+    <div class="fg" style="margin-top:10px"><label class="flbl">Voorbeeld</label><div class="inv-prev" id="inv-preview"></div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ac" style="flex:1;justify-content:center" onclick="saveInvoiceUI()">Opslaan</button>
+      <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="mailCurrentInv()">✉ Mailen</button>
+      <button class="btn btn-dan btn-sm" id="del-inv-btn" style="display:none" onclick="deleteInvoiceUI()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPENSE -->
+<div class="ov" id="ov-exp" onclick="closeSheet('exp')"></div>
+<div class="sheet" id="sh-exp">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl" id="sh-exp-ttl">Nieuwe uitgave</div><button class="s-x" onclick="closeSheet('exp')">✕</button></div>
+  <div class="s-body">
+    <div class="fg"><label class="flbl">Omschrijving</label><input class="inp" id="exp-desc" placeholder="Adobe Creative Cloud"></div>
+    <div class="frow2">
+      <div class="fg"><label class="flbl">Bedrag (€)</label><input type="number" class="inp" id="exp-amount" placeholder="29.99" step="0.01"></div>
+      <div class="fg"><label class="flbl">Datum</label><input type="date" class="inp" id="exp-date"></div>
+    </div>
+    <div class="fg"><label class="flbl">Categorie</label>
+      <select class="sel" id="exp-cat">
+        <option value="💻 Software">💻 Software &amp; Tools</option>
+        <option value="🚗 Reiskosten">🚗 Reiskosten</option>
+        <option value="📱 Abonnementen">📱 Abonnementen</option>
+        <option value="🏠 Kantoor">🏠 Kantoor &amp; Werkplek</option>
+        <option value="🎓 Opleiding">🎓 Opleiding &amp; Cursussen</option>
+        <option value="🍽️ Zakelijk eten">🍽️ Zakelijk eten</option>
+        <option value="📦 Overig">📦 Overig</option>
+      </select>
+    </div>
+    <div class="fg"><label class="flbl">Klant / Project</label><select class="sel" id="exp-client"></select></div>
+    <!-- BONNETJE UPLOAD -->
+    <div class="fg">
+      <label class="flbl">Bonnetje / Bewijs</label>
+      <div id="receipt-preview" style="display:none;margin-bottom:8px;position:relative">
+        <img id="receipt-img" src="" style="width:100%;max-height:180px;object-fit:contain;border-radius:9px;border:1px solid var(--br2);background:var(--sf2)">
+        <button onclick="removeReceipt()" style="position:absolute;top:6px;right:6px;background:var(--dan);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:600;cursor:pointer">✕ Verwijder</button>
+      </div>
+      <div id="receipt-placeholder" style="border:1.5px dashed var(--br2);border-radius:9px;padding:16px;text-align:center;cursor:pointer;background:var(--sf2)" onclick="document.getElementById('receipt-inp').click()">
+        <div style="font-size:24px;margin-bottom:4px">📷</div>
+        <div style="font-size:12px;color:var(--mu)">Tik om foto te uploaden</div>
+      </div>
+      <input type="file" id="receipt-inp" accept="image/*" style="display:none" onchange="handleReceipt(event)">
+    </div>
+      <div><div class="toggle-lbl">✅ Zakelijk aftrekbaar</div><div class="toggle-sub-txt">Aftrekbaar voor belasting</div></div>
+      <button class="toggle on" id="exp-aftrek-tog" onclick="toggleExpAftrek()"></button>
+    </div>
+    <div class="toggle-row">
+      <div><div class="toggle-lbl">🔄 Terugkerende uitgave</div><div class="toggle-sub-txt" id="exp-rec-sub">Eenmalig</div></div>
+      <button class="toggle" id="exp-rec-tog" onclick="toggleExpRec()"></button>
+    </div>
+    <div id="exp-rec-opts" style="display:none;margin:8px 0">
+      <select class="sel" id="exp-freq"><option value="monthly">Elke maand</option><option value="quarterly">Per kwartaal</option><option value="yearly">Jaarlijks</option></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ac" style="flex:2;justify-content:center" onclick="saveExpense()">Opslaan ✓</button>
+      <button class="btn btn-dan btn-sm" id="del-exp-btn" style="display:none" onclick="deleteExpense()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG HOURS -->
+<div class="ov" id="ov-log" onclick="closeSheet('log')"></div>
+<div class="sheet" id="sh-log">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl">Uren loggen</div><button class="s-x" onclick="closeSheet('log')">✕</button></div>
+  <div class="s-body">
+    <div class="fg"><label class="flbl">Klant</label><select class="sel" id="log-client"></select></div>
+    <div class="fg"><label class="flbl">Omschrijving</label><input class="inp" id="log-desc" placeholder="Wat heb je gedaan?"></div>
+    <div class="frow2">
+      <div class="fg"><label class="flbl">Uren</label><input type="number" class="inp" id="log-hours" placeholder="1.5" step="0.25" oninput="calcLogRev()"></div>
+      <div class="fg"><label class="flbl">Tarief €/u</label><input type="number" class="inp" id="log-rate" placeholder="95" oninput="calcLogRev()"></div>
+    </div>
+    <div class="rev-preview" style="margin-bottom:12px"><span style="font-size:13px;font-weight:600;color:var(--tx2)">Omzet</span><span style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--ac)" id="log-rev">€0</span></div>
+    <button class="btn btn-ac btn-blk" onclick="saveLog()">Uren boeken ✓</button>
+  </div>
+</div>
+
+<!-- PROFILE SHEET -->
+<div class="ov" id="ov-prof" onclick="closeSheet('prof')"></div>
+<div class="sheet" id="sh-prof">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl">Bedrijfsprofiel</div><button class="s-x" onclick="closeSheet('prof')">✕</button></div>
+  <div class="s-body">
+    <div class="fg"><label class="flbl">Bedrijfsnaam</label><input class="inp" id="p-naam" placeholder="Mijn BV"></div>
+    <div class="fg"><label class="flbl">Tagline / Functie</label><input class="inp" id="p-tag" placeholder="Freelance Designer"></div>
+    <div class="fg"><label class="flbl">E-mailadres</label><input class="inp" id="p-email" type="email" placeholder="naam@voorbeeld.nl"></div>
+    <div class="fg"><label class="flbl">Telefoon</label><input class="inp" id="p-tel" type="tel" placeholder="+31 6 00 000 000"></div>
+    <div class="fg"><label class="flbl">Adres</label><input class="inp" id="p-adres" placeholder="Straat 1, 1234 AB Amsterdam"></div>
+    <div class="fg"><label class="flbl">IBAN</label><input class="inp" id="p-iban" placeholder="NL00 BANK 0000 0000 00"></div>
+    <div class="frow2">
+      <div class="fg"><label class="flbl">KVK</label><input class="inp" id="p-kvk" placeholder="12345678"></div>
+      <div class="fg"><label class="flbl">BTW-nummer</label><input class="inp" id="p-btw-nr" placeholder="NL...B01"></div>
+    </div>
+    <div class="fg"><label class="flbl">Betaaltermijn (dagen)</label><input class="inp" id="p-days" type="number" value="30"></div>
+    <button class="btn btn-ac btn-blk" onclick="saveProfileUI()">Profiel opslaan ✓</button>
+  </div>
+</div>
+
+<!-- GOAL SHEET -->
+<div class="ov" id="ov-goal" onclick="closeSheet('goal')"></div>
+<div class="sheet" id="sh-goal">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl">Maanddoel aanpassen</div><button class="s-x" onclick="closeSheet('goal')">✕</button></div>
+  <div class="s-body">
+    <div class="fg"><label class="flbl">Omzetdoel deze maand (€)</label><input type="number" class="inp" id="goal-inp" placeholder="6000" min="0"></div>
+    <button class="btn btn-ac btn-blk" onclick="saveGoal()">Opslaan</button>
+  </div>
+</div>
+
+<!-- CLIENT SHEET -->
+<div class="ov" id="ov-client" onclick="closeSheet('client')"></div>
+<div class="sheet" id="sh-client">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl" id="sh-cl-ttl">Klant toevoegen</div><button class="s-x" onclick="closeSheet('client')">✕</button></div>
+  <div class="s-body">
+    <div class="fg"><label class="flbl">Bedrijfsnaam</label><input class="inp" id="cl-name" placeholder="Bakkerij de Wit"></div>
+    <div class="fg"><label class="flbl">Sector / Type</label><input class="inp" id="cl-type" placeholder="Bakkerij &amp; Horeca"></div>
+    <div class="fg"><label class="flbl">E-mail</label><input class="inp" id="cl-email" type="email" placeholder="info@klant.nl"></div>
+    <div class="frow2">
+      <div class="fg"><label class="flbl">Uurtarief (€)</label><input type="number" class="inp" id="cl-rate" placeholder="95"></div>
+      <div class="fg"><label class="flbl">Emoji</label><input class="inp" id="cl-emoji" placeholder="🏢" maxlength="2"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ac btn-blk" onclick="saveClientUI()">Opslaan ✓</button>
+      <button class="btn btn-dan btn-sm" id="del-cl-btn" style="display:none" onclick="deleteClientUI()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNT SHEET -->
+<div class="ov" id="ov-account" onclick="closeSheet('account')"></div>
+<div class="sheet" id="sh-account">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl">Account</div><button class="s-x" onclick="closeSheet('account')">✕</button></div>
+  <div class="s-body">
+    <div style="text-align:center;padding:16px 0 20px">
+      <div style="width:64px;height:64px;border-radius:16px;background:var(--acl);border:2px solid #b7dfc8;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--ac);margin:0 auto 10px" id="acc-av">?</div>
+      <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--tx)" id="acc-name">—</div>
+      <div style="font-size:12px;color:var(--mu);margin-top:2px" id="acc-email">—</div>
+      <div id="acc-plan-badge" style="margin-top:8px;display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;background:var(--wrnl);color:var(--wrn)">Gratis plan</div>
+    </div>
+    <div class="divider"></div>
+    <button class="btn btn-ghost btn-blk" style="margin-bottom:8px" onclick="closeSheet('account');openSheet('prof')">✏ Bedrijfsprofiel</button>
+    <button class="btn btn-ghost btn-blk" style="margin-bottom:8px" onclick="closeSheet('account');openClientSheet()">+ Klant toevoegen</button>
+    <button class="btn btn-ghost btn-blk" style="margin-bottom:8px" onclick="closeSheet('account');openSubFreelancerSheet()">👥 Sub-freelancer uitnodigen</button>
+    <button class="btn btn-ghost btn-blk" style="margin-bottom:8px" onclick="closeSheet('account');openAI()">✦ AI Assistent</button>
+    <div class="divider"></div>
+    <button class="btn btn-dan btn-blk" onclick="doLogout()">Uitloggen</button>
+  </div>
+</div>
+
+<!-- FACTUUR NA TAAK SHEET -->
+<div class="ov" id="ov-inv-after" onclick="closeSheet('inv-after')"></div>
+<div class="sheet" id="sh-inv-after">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl">🎉 Taak afgerond!</div><button class="s-x" onclick="closeSheet('inv-after')">✕</button></div>
+  <div class="s-body">
+    <div style="background:var(--acl);border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:4px">Afgeronde taak</div>
+      <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--tx)" id="iat-task-name">—</div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px">
+        <span style="font-size:12px;color:var(--mu)" id="iat-task-client">—</span>
+        <span style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--ac)" id="iat-task-rev">€0</span>
+      </div>
+    </div>
+    <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:12px">Wil je direct een factuur versturen?</div>
+    <div class="fg"><label class="flbl">E-mail klant</label><input class="inp" id="iat-email" type="email" placeholder="klant@voorbeeld.nl"></div>
+    <div class="fg"><label class="flbl">Omschrijving factuur</label><input class="inp" id="iat-desc" placeholder="Werkzaamheden"></div>
+    <div class="fg"><label class="flbl">BTW (%)</label>
+      <select class="sel" id="iat-btw"><option value="21">21%</option><option value="9">9%</option><option value="0">0% (vrijgesteld)</option></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ac" style="flex:1;justify-content:center" onclick="createInvFromTaskUI()">📄 Factuur aanmaken</button>
+      <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closeSheet('inv-after')">Niet nu</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUB-FREELANCER SHEET -->
+<div class="ov" id="ov-sub-fl" onclick="closeSheet('sub-fl')"></div>
+<div class="sheet" id="sh-sub-fl">
+  <div class="s-drag"></div>
+  <div class="s-hd"><div class="s-ttl">👥 Sub-freelancer</div><button class="s-x" onclick="closeSheet('sub-fl')">✕</button></div>
+  <div class="s-body">
+    <div style="background:var(--infl);border-radius:12px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--inf)">
+      <strong>Hoe werkt het?</strong><br>
+      Genereer een uitnodigingscode. De andere freelancer maakt een account aan en voert jouw code in. Daarna kan die uren boeken op jouw klanten — jij ziet het in jouw dashboard.
+    </div>
+    <div class="fg"><label class="flbl">Mijn uitnodigingscode</label>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="sub-invite-code" readonly style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--ac);flex:1">
+        <button class="btn btn-ghost btn-sm" onclick="copyInviteCode()">📋 Kopieer</button>
+      </div>
+    </div>
+    <button class="btn btn-ac btn-blk" style="margin-bottom:12px" onclick="genInviteCode()">🔄 Nieuwe code genereren</button>
+    <div class="divider"></div>
+    <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:12px;margin-top:12px">Deelnemen als sub-freelancer</div>
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:10px">Heb je een code ontvangen van een andere freelancer? Voer die hier in om uren te boeken op hun klanten.</div>
+    <div class="fg"><label class="flbl">Uitnodigingscode</label>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="sub-join-code" placeholder="DT-XXXXXX" style="font-family:'JetBrains Mono',monospace;flex:1" oninput="this.value=this.value.toUpperCase()">
+        <button class="btn btn-ac btn-sm" onclick="joinAsSubFreelancer()">Deelnemen</button>
+      </div>
+    </div>
+    <div id="sub-members-list" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ADMIN MODAL -->
+<div class="ai-ov" id="admin-ov" onclick="if(event.target===this)closeAdmin()">
+  <div class="ai-modal" style="max-height:90vh">
+    <div class="ai-drag"></div>
+    <div class="ai-mhd">
+      <div><div class="ai-mtitle">⚙️ Admin Dashboard</div><div class="ai-msub">Dagtaak platform overzicht</div></div>
+      <button class="s-x" onclick="closeAdmin()">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:16px">
+      <div id="admin-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AI MODAL -->
+<div class="ai-ov" id="ai-ov" onclick="if(event.target===this)closeAI()">
+  <div class="ai-modal">
+    <div class="ai-drag"></div>
+    <div class="ai-mhd">
+      <div><div class="ai-mtitle">✦ AI Assistent</div><div class="ai-msub">Persoonlijk advies voor jouw business</div></div>
+      <button class="s-x" onclick="closeAI()">✕</button>
+    </div>
+    <!-- API KEY BANNER -->
+    <div id="api-key-banner" class="api-key-banner" style="margin:10px 16px 0;display:none">
+      <strong>🔑 API key vereist</strong><br>
+      Voer je gratis Anthropic API key in. Ga naar <strong>console.anthropic.com</strong> → API Keys → Create key.
+      <div class="api-key-row">
+        <input class="inp" id="api-key-inp" type="password" placeholder="sk-ant-..." style="flex:1">
+        <button class="btn btn-ac btn-sm" onclick="saveApiKey()">Opslaan</button>
+      </div>
+    </div>
+    <div class="qps">
+      <button class="qp" onclick="qp('Wat moet ik nu als eerste doen?')">Wat eerst?</button>
+      <button class="qp" onclick="qp('Hoe verhoog ik mijn omzet als ZZP\'er?')">Omzet tips</button>
+      <button class="qp" onclick="qp('Hoe schrijf ik een sterke offerte?')">Offerte</button>
+      <button class="qp" onclick="qp('Welke kosten zijn aftrekbaar als ZZP\'er?')">Aftrekposten</button>
+      <button class="qp" onclick="qp('Klant betaalt te laat, wat kan ik doen?')">Late betaler</button>
+      <button class="qp" onclick="qp('Wat is een goed uurtarief voor mijn vakgebied in 2026?')">Uurtarief</button>
+    </div>
+    <div class="chat-area" id="chat-area"><div class="msg ph">Kies een prompt of typ je vraag ↓</div></div>
+    <div class="ai-inp-row">
+      <input class="ai-inp" id="ai-inp" placeholder="Stel een vraag..." onkeydown="if(event.key==='Enter')askAI()">
+      <button class="btn btn-ac btn-sm" onclick="askAI()">→</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-msg">—</span></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════════════════════
+const SUPA_URL='https://tiiwmvqlfnetqxhfqwnk.supabase.co';
+const SUPA_KEY='sb_publishable_bvMuQo0q8mTtyByWDZXODQ_ThX2aLrU';
+const db=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+
+// ═══════════════════════════════════════════════════
+// LOCAL STORAGE (alleen voor dark mode + timer state)
+// ═══════════════════════════════════════════════════
+const _mem={};
+function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return _mem[k]??null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}_mem[k]=v;}
+function enc(s){try{return btoa(unescape(encodeURIComponent(s)));}catch(e){return btoa(s.replace(/[^\x00-\x7F]/g,'?'));}}
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let currentUser=null;
+let profile,clients,tasks,hourLog,invoices,expenses;
+let nTid=100,nIid=100,nEid=100;
+let activeFilter='all',activeExpFilter='all',activeInvFilter='all';
+let editTaskId=null,editInvId=null,editExpId=null,editClIdx=null;
+let selPrio='medium',taskRec=false,invRec=false,expRec=false,expAftrek=true;
+let invLines=[],shSubs=[];
+let timerSec=0,timerRunning=false,timerIv=null,timerTaskId=null;
+let weekOffset=0,selDay=null;
+let aiHistory=[],obIdx=0;
+let isDark=false;
+
+const uk=k=>`dt-${currentUser?.email||'guest'}-${k}`;
+// Legacy localStorage (niet meer gebruikt voor data, alleen voor migratie)
+const uGet=k=>lsGet(uk(k));
+const uSet=(k,v)=>lsSet(uk(k),v);
+
+// ═══════════════════════════════════════════════════
+// SUPABASE DATA — Lezen & Schrijven
+// ═══════════════════════════════════════════════════
+const uid=()=>currentUser?.id;
+
+// LADEN: haal alle data op uit Supabase
+async function loadData(){
+  if(!uid())return;
+  try{
+    // Business profile
+    const {data:bp}=await db.from('business_profile').select('*').eq('user_id',uid()).single();
+    profile=bp?{
+      name:bp.name||currentUser?.user_metadata?.name||'Mijn Bedrijf',
+      tag:bp.tag||"Freelancer & ZZP'er",
+      email:bp.email||currentUser?.email||'',
+      tel:bp.phone||'', adres:bp.address||'', iban:bp.iban||'',
+      kvk:bp.kvk||'', btw:bp.btw_nr||'', days:bp.payment_days||30,
+      logo:bp.logo||'', goal:bp.goal||6000
+    }:{name:currentUser?.user_metadata?.name||'Mijn Bedrijf',tag:"Freelancer & ZZP'er",email:currentUser?.email||'',tel:'',adres:'',iban:'',kvk:'',btw:'',days:30,logo:'',goal:6000};
+
+    // Klanten — GEEN demo data, lege lijst voor nieuwe gebruikers
+    const {data:cl}=await db.from('clients').select('*').eq('user_id',uid()).order('created_at');
+    clients=cl?.map(c=>({id:c.id,name:c.name,type:c.type||'',emoji:c.emoji||'🏢',email:c.email||'',rate:c.rate||0}))||[];
+
+    // Taken — GEEN demo data
+    const {data:tk}=await db.from('tasks').select('*').eq('user_id',uid()).order('created_at',{ascending:false});
+    tasks=tk?.map(t=>({id:t.id,name:t.name,client:t.client||'',hours:t.hours||0,rate:t.rate||0,priority:t.priority||'medium',done:t.done||false,time:t.time_val||'09:00',note:t.note||'',subtasks:t.subtasks||[],recurring:t.recurring||false,recurFreq:t.recur_freq||null}))||[];
+
+    // Urenlog
+    const {data:hl}=await db.from('hour_log').select('*').eq('user_id',uid()).order('created_at',{ascending:false});
+    hourLog=hl?.map(l=>({id:l.id,client:l.client||'',desc:l.description||'',hours:l.hours||0,rate:l.rate||0,date:l.date||'',revenue:l.revenue||0}))||[];
+
+    // Facturen
+    const {data:inv}=await db.from('invoices').select('*').eq('user_id',uid()).order('created_at',{ascending:false});
+    invoices=inv?.map(i=>({id:i.id,type:i.type||'invoice',client:i.client||'',email:i.email||'',desc:i.description||'',lines:i.lines||[],btw:i.btw||21,status:i.status||'open',date:i.date||'',num:i.num||'',recurring:i.recurring||false,recurFreq:i.recur_freq||null}))||[];
+
+    // Uitgaven
+    const {data:ex}=await db.from('expenses').select('*').eq('user_id',uid()).order('created_at',{ascending:false});
+    expenses=ex?.map(e=>({id:e.id,desc:e.description||'',amount:e.amount||0,cat:e.category||'📦 Overig',date:e.date||'',client:e.client||'',aftrekbaar:e.aftrekbaar!==false,recurring:e.recurring||false,recurFreq:e.recur_freq||null,receipt:e.receipt||null}))||[];
+
+  }catch(err){
+    console.warn('loadData error:',err);
+    if(!profile)profile={name:currentUser?.user_metadata?.name||'Mijn Bedrijf',tag:"Freelancer & ZZP'er",email:currentUser?.email||'',tel:'',adres:'',iban:'',kvk:'',btw:'',days:30,logo:'',goal:6000};
+    if(!clients)clients=[];if(!tasks)tasks=[];
+    if(!hourLog)hourLog=[];if(!invoices)invoices=[];if(!expenses)expenses=[];
+  }
+}
+
+// OPSLAAN: async save functies per entiteit
+async function saveProfile(){
+  const {error}=await db.from('business_profile').upsert({
+    user_id:uid(),name:profile.name,tag:profile.tag,email:profile.email,
+    phone:profile.tel,address:profile.adres,iban:profile.iban,
+    kvk:profile.kvk,btw_nr:profile.btw,payment_days:profile.days,
+    logo:profile.logo,goal:profile.goal,updated_at:new Date().toISOString()
+  });
+  if(error)console.warn('saveProfile error:',error);
+}
+
+async function saveTask(taskObj,isNew=false){
+  const row={user_id:uid(),name:taskObj.name,client:taskObj.client,hours:taskObj.hours,rate:taskObj.rate,priority:taskObj.priority,done:taskObj.done,time_val:taskObj.time,note:taskObj.note,subtasks:taskObj.subtasks,recurring:taskObj.recurring,recur_freq:taskObj.recurFreq};
+  if(isNew){
+    const {data,error}=await db.from('tasks').insert(row).select().single();
+    if(error)console.warn('saveTask error:',error);
+    return data;
+  } else {
+    const {error}=await db.from('tasks').update(row).eq('id',taskObj.id).eq('user_id',uid());
+    if(error)console.warn('updateTask error:',error);
+  }
+}
+
+async function deleteTaskDb(id){
+  await db.from('tasks').delete().eq('id',id).eq('user_id',uid());
+}
+
+async function saveClient(clientObj,isNew=false){
+  const row={user_id:uid(),name:clientObj.name,type:clientObj.type,emoji:clientObj.emoji,email:clientObj.email,rate:clientObj.rate};
+  if(isNew){
+    const {data}=await db.from('clients').insert(row).select().single();
+    return data;
+  } else {
+    await db.from('clients').update(row).eq('id',clientObj.id).eq('user_id',uid());
+  }
+}
+
+async function deleteClientDb(id){
+  await db.from('clients').delete().eq('id',id).eq('user_id',uid());
+}
+
+async function saveInvoice(invObj,isNew=false){
+  const row={user_id:uid(),type:invObj.type,client:invObj.client,email:invObj.email,description:invObj.desc,lines:invObj.lines,btw:invObj.btw,status:invObj.status,date:invObj.date,num:invObj.num,recurring:invObj.recurring,recur_freq:invObj.recurFreq};
+  if(isNew){
+    const {data}=await db.from('invoices').insert(row).select().single();
+    return data;
+  } else {
+    await db.from('invoices').update(row).eq('id',invObj.id).eq('user_id',uid());
+  }
+}
+
+async function deleteInvoiceDb(id){
+  await db.from('invoices').delete().eq('id',id).eq('user_id',uid());
+}
+
+async function saveExpenseDb(expObj,isNew=false){
+  const row={user_id:uid(),description:expObj.desc,amount:expObj.amount,category:expObj.cat,date:expObj.date,client:expObj.client,aftrekbaar:expObj.aftrekbaar,recurring:expObj.recurring,recur_freq:expObj.recurFreq,receipt:expObj.receipt||null};
+  if(isNew){
+    const {data}=await db.from('expenses').insert(row).select().single();
+    return data;
+  } else {
+    await db.from('expenses').update(row).eq('id',expObj.id).eq('user_id',uid());
+  }
+}
+
+async function deleteExpenseDb(id){
+  await db.from('expenses').delete().eq('id',id).eq('user_id',uid());
+}
+
+async function saveLogEntry(logObj){
+  const {data}=await db.from('hour_log').insert({user_id:uid(),client:logObj.client,description:logObj.desc,hours:logObj.hours,rate:logObj.rate,date:logObj.date,revenue:logObj.revenue}).select().single();
+  return data;
+}
+
+async function deleteLogDb(id){
+  await db.from('hour_log').delete().eq('id',id).eq('user_id',uid());
+}
+
+// Legacy saveAll — niet meer nodig maar houd voor compatibiliteit
+function saveAll(){}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+const p2=n=>String(n).padStart(2,'0');
+const fmts=n=>'€'+Math.round(n).toLocaleString('nl-NL');
+const fmt2=n=>'€'+Number(n).toFixed(2).replace('.',',');
+const today=()=>{const d=new Date();return p2(d.getDate())+'-'+p2(d.getMonth()+1);};
+const todayFull=()=>{const d=new Date();return p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear();};
+const $=id=>document.getElementById(id);
+const se=(id,v)=>{const el=$(id);if(el)el.textContent=v;};
+
+const CC={'Bakkerij de Wit':{bg:'#e8f5ee',tx:'#1b4332',col:'#2d6a4f'},'Studio Noord':{bg:'#eaf2fb',tx:'#1a5f9c',col:'#1a5f9c'},'TechStart BV':{bg:'#fdf0ee',tx:'#922b21',col:'#c0392b'},'Eigen':{bg:'#fdf6e8',tx:'#7d5a1e',col:'#b07d2a'}};
+const cc=n=>CC[n]||{bg:'#f0ede8',tx:'#4a4740',col:'#8a8680'};
+const EXP_BG={'💻 Software':'#eaf2fb','🚗 Reiskosten':'#e8f5ee','📱 Abonnementen':'#f3eeff','🏠 Kantoor':'#fdf6e8','🎓 Opleiding':'#fdf0ee','🍽️ Zakelijk eten':'#fff5ee','📦 Overig':'#f0ede8'};
+
+function invSubtotal(inv){return(inv.lines||[]).reduce((s,l)=>s+(l.hours||0)*(l.rate||0),0);}
+function invTotal(inv){const s=invSubtotal(inv),b=parseFloat(inv.btw);return s*(1+(isNaN(b)?21:b)/100);}
+function monthRev(){return hourLog.reduce((s,l)=>s+l.revenue,0)+tasks.filter(t=>t.done).reduce((s,t)=>s+(t.hours||0)*(t.rate||0),0);}
+function totalExp(){return expenses.reduce((s,e)=>s+e.amount,0);}
+function aftrekbaar(){return expenses.filter(e=>e.aftrekbaar).reduce((s,e)=>s+e.amount,0);}
+function netProfit(){return monthRev()-totalExp();}
+
+function fillSels(){
+  const o=clients.map(c=>`<option>${c.name}</option>`).join('');
+  ['t-client','inv-client','log-client'].forEach(id=>{const el=$(id);if(el)el.innerHTML=o;});
+  const ec=$('exp-client');if(ec)ec.innerHTML=`<option value="">— Algemeen —</option>`+o;
+}
+
+// ═══════════════════════════════════════════════════
+// DARK MODE
+// ═══════════════════════════════════════════════════
+function toggleDark(){
+  isDark=!isDark;
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'');
+  $('dark-btn').textContent=isDark?'☀️':'🌙';
+  lsSet('dt-dark',isDark);
+}
+
+// ═══════════════════════════════════════════════════
+// LOAD DATA
+// ═══════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════
+// AUTH — Supabase
+// ═══════════════════════════════════════════════════
+function authTab(tab,btn){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.auth-pane').forEach(p=>p.classList.remove('active'));
+  $('pane-'+tab).classList.add('active');
+  $('auth-err').style.display='none';
+}
+function showErr(msg){const e=$('auth-err');e.textContent=msg;e.style.display='block';}
+function getUsers(){return{};}
+function saveUsers(){}
+
+async function doLogin(){
+  const email=($('login-email').value||'').trim().toLowerCase();
+  const pw=$('login-pw').value||'';
+  if(!email||!pw){showErr('Vul je e-mail en wachtwoord in.');return;}
+  showErr('Bezig met inloggen...');
+  const {error}=await db.auth.signInWithPassword({email,password:pw});
+  if(error){showErr('Inloggen mislukt: '+error.message);}
+}
+
+async function doRegister(){
+  const name=($('reg-name').value||'').trim();
+  const email=($('reg-email').value||'').trim().toLowerCase();
+  const pw=$('reg-pw').value||'';
+  const bedrijf=($('reg-bedrijf').value||'').trim();
+  if(!name||!email||!pw){showErr('Vul alle velden in.');return;}
+  if(pw.length<6){showErr('Wachtwoord minimaal 6 tekens.');return;}
+  if(!email.includes('@')){showErr('Ongeldig e-mailadres.');return;}
+  showErr('Account aanmaken...');
+  const {data,error}=await db.auth.signUp({
+    email,password:pw,options:{data:{name,bedrijf:bedrijf||name}}
+  });
+  if(error){showErr('Registratie mislukt: '+error.message);return;}
+  if(data.user&&!data.session){showErr('✓ Check je e-mail om te bevestigen!');}
+}
+
+async function doGoogleLogin(){
+  const {error}=await db.auth.signInWithOAuth({
+    provider:'google',options:{redirectTo:window.location.origin}
+  });
+  if(error)showErr('Google login mislukt: '+error.message);
+}
+
+async function demoLogin(){
+  showErr('Demo laden...');
+  const {error}=await db.auth.signInWithPassword({email:'demo@dagtaak.nl',password:'Demo1234!'});
+  if(error){
+    const {error:e2}=await db.auth.signUp({
+      email:'demo@dagtaak.nl',password:'Demo1234!',
+      options:{data:{name:'Demo Gebruiker',bedrijf:'Mijn ZZP Bedrijf'}}
+    });
+    if(e2)showErr('Demo niet beschikbaar');
+  }
+}
+
+async function doLogout(){
+  closeSheet('account');
+  await db.auth.signOut();
+  currentUser=null;
+  profile=null;clients=[];tasks=[];hourLog=[];invoices=[];expenses=[];
+  $('app-wrap').classList.remove('visible');
+  $('auth-wrap').classList.remove('hidden');
+  try{$('login-email').value='';$('login-pw').value='';}catch(e){}
+  $('auth-err').style.display='none';
+  toast('Tot ziens! 👋');
+}
+
+function renderQuickUsers(){}
+function quickLogin(email){
+  $('login-email').value=email;$('login-pw').focus();
+  document.querySelectorAll('.auth-tab').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('.auth-pane').forEach((p,i)=>p.classList.toggle('active',i===0));
+}
+
+async function showApp(){
+  $('ob-wrap').classList.add('hidden');
+  $('app-wrap').classList.add('visible');
+  await loadData();
+  fillSels();renderTasks();renderStats();renderSidebarDate();
+  const name=currentUser?.user_metadata?.name||currentUser?.email?.split('@')[0]||'?';
+  const init=name.charAt(0).toUpperCase();
+  se('tb-av',init);se('acc-av',init);
+  se('acc-name',name);se('acc-email',currentUser?.email||'—');
+  // Plan badge
+  try{
+    const {data:prof}=await db.from('profiles').select('plan').eq('id',uid()).single();
+    const plan=prof?.plan||'free';
+    const badge=$('acc-plan-badge');
+    if(badge){
+      badge.textContent=plan==='pro'?'✦ Pro abonnee':'Gratis plan';
+      badge.style.background=plan==='pro'?'var(--acl)':'var(--wrnl)';
+      badge.style.color=plan==='pro'?'var(--ac)':'var(--wrn)';
+    }
+  }catch(e){}
+  renderSubLinks();
+}
+
+// ═══════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════
+const OB=[
+  {e:'👋',t:'Welkom bij Dagtaak!',b:"Jouw persoonlijke AI-planner voor ZZP'ers. Plan taken, log uren, maak facturen en houd je winst bij.",tips:[]},
+  {e:'◉',t:'Vandaag-overzicht',b:'Al je taken op één plek. Timer bijhouden en statistieken live zien.',tips:[{i:'✦',t:'Klik op een taak voor details'},{i:'▶',t:'Start timer bij een taak'},{i:'✓',t:'Vink af — omzet automatisch geboekt!'}]},
+  {e:'◇',t:'Facturen & Offertes',b:'Professionele facturen met jouw bedrijfsgegevens. Mail direct naar klant.',tips:[{i:'📤',t:'Automatische herinneringen bij te laat betalen'},{i:'🔄',t:'Terugkerende facturen instellen'}]},
+  {e:'💸',t:'Uitgaven & Winst',b:'Kosten bijhouden en nettoresultaat + belastingschatting automatisch berekend.',tips:[{i:'✅',t:'Markeer kosten als zakelijk aftrekbaar'},{i:'📊',t:'Zie netto winst na belasting'}]},
+  {e:'✦',t:'AI Assistent',b:'Persoonlijk advies over je dag, tarieven en offertes. Voer je Anthropic API key in via de AI knop.',tips:[{i:'🔑',t:'Gratis key via console.anthropic.com'},{i:'💬',t:'Stel vragen over taken, klanten en business'}]},
+  {e:'🏢',t:'Stel je profiel in',b:'Vul je bedrijfsgegevens in zodat je facturen er professioneel uitzien.',tips:[],isProfile:true},
+];
+
+function renderOnboarding(){
+  const pips=$('ob-pips');
+  pips.innerHTML=OB.map((_,i)=>`<div class="ob-pip ${i<=obIdx?'done':''}"></div>`).join('');
+  const slides=$('ob-slides');
+  const s=OB[obIdx];
+  // Laatste stap = profiel formulier
+  if(s.isProfile){
+    slides.innerHTML=`<div class="ob-slide" style="width:100%;padding:20px 24px;overflow-y:auto">
+      <div style="font-size:40px;margin-bottom:10px">🏢</div>
+      <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--tx);margin-bottom:6px">Jouw bedrijfsprofiel</div>
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">Dit staat op je facturen. Je kunt dit later altijd aanpassen.</div>
+      <div class="fg"><label class="flbl">Bedrijfsnaam *</label><input class="inp" id="ob-naam" placeholder="Mijn ZZP Bedrijf" value="${profile?.name||currentUser?.user_metadata?.name||''}"></div>
+      <div class="fg"><label class="flbl">Jouw functie / tagline</label><input class="inp" id="ob-tag" placeholder="Freelance Designer & Ontwikkelaar"></div>
+      <div class="fg"><label class="flbl">E-mailadres</label><input class="inp" id="ob-email" type="email" placeholder="${currentUser?.email||'naam@bedrijf.nl'}" value="${currentUser?.email||''}"></div>
+      <div class="fg"><label class="flbl">Telefoon</label><input class="inp" id="ob-tel" type="tel" placeholder="+31 6 00 000 000"></div>
+      <div class="fg"><label class="flbl">KVK-nummer</label><input class="inp" id="ob-kvk" placeholder="12345678"></div>
+      <div class="fg"><label class="flbl">BTW-nummer</label><input class="inp" id="ob-btw" placeholder="NL000000000B01"></div>
+      <div class="fg"><label class="flbl">IBAN</label><input class="inp" id="ob-iban" placeholder="NL00 BANK 0000 0000 00"></div>
+      <div class="fg"><label class="flbl">Maanddoel omzet (€)</label><input class="inp" id="ob-goal" type="number" placeholder="6000" value="6000"></div>
+    </div>`;
+    $('ob-btn').textContent='Opslaan & starten 🚀';
+  } else {
+    slides.innerHTML=`<div class="ob-slide" style="width:100%">
+      <div class="ob-emoji">${s.e}</div>
+      <div class="ob-title">${s.t}</div>
+      <div class="ob-body">${s.b}</div>
+      ${s.tips.length?`<div class="ob-tips">${s.tips.map(t=>`<div class="ob-tip"><div class="ob-tip-ico">${t.i}</div><div>${t.t}</div></div>`).join('')}</div>`:''}</div>`;
+    $('ob-btn').textContent=obIdx===OB.length-1?'Aan de slag! 🚀':'Volgende →';
+  }
+  document.querySelectorAll('.ob-pip').forEach((p,i)=>p.className='ob-pip'+(i<=obIdx?' done':''));
+}
+async function nextSlide(){
+  const s=OB[obIdx];
+  // Als dit de profielstap is — opslaan
+  if(s.isProfile){
+    profile.name=$('ob-naam').value||profile.name;
+    profile.tag=$('ob-tag').value||"Freelancer & ZZP'er";
+    profile.email=$('ob-email').value||currentUser?.email||'';
+    profile.tel=$('ob-tel').value||'';
+    profile.kvk=$('ob-kvk').value||'';
+    profile.btw=$('ob-btw').value||'';
+    profile.iban=$('ob-iban').value||'';
+    profile.goal=parseInt($('ob-goal').value)||6000;
+    await saveProfile();
+    await finishOnboard();
+    return;
+  }
+  if(obIdx<OB.length-1){obIdx++;renderOnboarding();}
+  else{await finishOnboard();}
+}
+async function finishOnboard(){
+  lsSet('dt-ob-'+currentUser?.id,true);
+  await showApp();
+}
+
+// ═══════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════
+function renderStats(){
+  const done=tasks.filter(t=>t.done).length,open=tasks.filter(t=>!t.done).length;
+  const urgent=tasks.filter(t=>!t.done&&t.priority==='urgent').length;
+  const total=tasks.length,pct=total?Math.round(done/total*100):0;
+
+  // Omzet = betaalde facturen (exclusief BTW) — de echte administratieve omzet
+  const paidInvs=invoices.filter(i=>i.status==='paid');
+  const invRevExclBtw=paidInvs.reduce((s,i)=>s+invSubtotal(i),0);
+  const invRevInclBtw=paidInvs.reduce((s,i)=>s+invTotal(i),0);
+  const btwAfdragen=paidInvs.reduce((s,i)=>s+(invTotal(i)-invSubtotal(i)),0);
+  const openAmt=invoices.filter(i=>i.status!=='paid'&&i.type==='invoice').reduce((s,i)=>s+invTotal(i),0);
+  const lateCount=invoices.filter(i=>i.status==='late').length;
+
+  // Voor dagelijkse stats gebruiken we ook uurlog + afgevinkte taken
+  const logRev=hourLog.reduce((s,l)=>s+l.revenue,0);
+  const taskRev=tasks.filter(t=>t.done).reduce((s,t)=>s+(t.hours||0)*(t.rate||0),0);
+  const todayRev=logRev+taskRev; // totaal gewerkt (voor maanddoel tracking)
+  const goal=profile.goal||6000;
+  // Gebruik betaalde facturen als primaire omzet indicator, val terug op gewerkte uren
+  const displayRev=invRevExclBtw>0?invRevExclBtw:todayRev;
+  const gp=Math.min(Math.round(displayRev/goal*100),100);
+  const todayH=hourLog.reduce((s,l)=>s+l.hours,0);
+  const todayE=tasks.filter(t=>t.done).reduce((s,t)=>s+(t.hours||0)*(t.rate||0),0);
+
+  se('s-open',open);se('s-done',done);se('s-urgent',urgent+' urgent');
+  se('s-pct',pct+'% gedaan');se('s-rev',fmts(displayRev));se('s-goal-pct',gp+'% van doel');
+  se('s-earned',fmts(todayE));se('s-hrs',todayH.toFixed(1)+'u');
+
+  // Invoice page stats
+  se('inv-paid',fmts(invRevInclBtw));se('inv-paid-excl',fmts(invRevExclBtw));
+  se('inv-open',fmts(openAmt));se('inv-late-count',lateCount+' te laat');
+  se('inv-btw-af',fmts(btwAfdragen));
+  se('inv-total-count',invoices.filter(i=>i.type==='invoice').length);
+  se('inv-quote-count',invoices.filter(i=>i.type==='quote').length+' offertes');
+  se('btw-kwartaal',fmts(btwAfdragen));
+
+  // Expenses / profit (op basis van betaalde facturen ex BTW)
+  const tot=totalExp(),aft=aftrekbaar(),np=invRevExclBtw-tot;
+  se('exp-total',fmts(tot));se('exp-aftrek',fmts(aft));se('exp-count',expenses.length);
+  se('profit-big',fmts(np));se('profit-sub','Omzet '+fmts(invRevExclBtw)+' − Kosten '+fmts(tot));
+  const m=invRevExclBtw>0?Math.round(np/invRevExclBtw*100):0,tax=Math.max(np*0.37,0);
+  se('prof-margin',m+'%');se('prof-tax',fmts(tax));se('prof-net',fmts(Math.max(np-tax,0)));
+
+  se('goal-disp',fmts(displayRev));se('goal-target',(goal).toLocaleString('nl-NL'));se('goal-pct',gp+'%');
+  const gf=$('goal-fill');if(gf)gf.style.width=gp+'%';
+
+  // Sidebar progress
+  se('sb-prog-lbl',done+'/'+total);
+  const spf=$('sb-prog-fill');if(spf)spf.style.width=(total?pct:0)+'%';
+  se('sb-badge-today',total);
+
+  // Sidebar clients
+  const sbcl=$('sb-clients-list');
+  if(sbcl){
+    const byC={};hourLog.forEach(l=>{byC[l.client]=(byC[l.client]||0)+l.hours;});
+    sbcl.innerHTML=`<div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:6px">Klanten</div>`+
+      clients.map(c=>`<div class="sb-cl-row"><div class="sb-cl-dot" style="background:${cc(c.name).col}"></div><span class="sb-cl-nm">${c.name}</span><span class="sb-cl-hrs">${(byC[c.name]||0).toFixed(1)}u</span></div>`).join('');
+  }
+
+  const late=invoices.filter(i=>i.status==='late');
+  const dot=$('inv-dot');if(dot)dot.style.display=late.length?'block':'none';
+  const invBadge=$('sb-badge-inv');if(invBadge)invBadge.style.display=late.length?'inline':'none';
+  const html=late.map(inv=>`<div class="alert-banner"><div class="alert-icon">⚠️</div><div style="flex:1"><div class="alert-title">Factuur te laat: ${inv.client}</div><div class="alert-msg">${inv.num} · ${fmts(invTotal(inv))} · ${inv.date}</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-dan btn-sm" onclick="sendReminder(${inv.id})">📤 Herinnering</button><button class="btn btn-ghost btn-sm" onclick="markPaid(${inv.id})">✓ Betaald</button></div></div></div>`).join('');
+  ['alerts-today','inv-alerts'].forEach(id=>{const el=$(id);if(el)el.innerHTML=html;});
+
+  renderRevBreakdown('rev-breakdown-today');
+}
+
+function sendReminder(id){
+  const inv=invoices.find(i=>i.id===id);if(!inv||!inv.email){toast('Geen e-mail bekend');return;}
+  const sj=encodeURIComponent('Herinnering betaling '+inv.num+' — '+profile.name);
+  const bd=encodeURIComponent('Beste,\n\nVriendelijke herinnering voor openstaande factuur '+inv.num+' d.d. '+inv.date+'.\n\nBedrag: '+fmts(invTotal(inv))+' (incl. BTW)\n\nGelieve te betalen op:\nIBAN: '+profile.iban+'\nt.n.v. '+profile.name+'\n\nMet vriendelijke groet,\n'+profile.name);
+  window.location.href='mailto:'+inv.email+'?subject='+sj+'&body='+bd;
+  toast('✉ Herinneringsmail geopend');
+}
+
+// ═══════════════════════════════════════════════════
+// TASKS
+// ═══════════════════════════════════════════════════
+function renderTasks(){
+  renderStats();
+  let list=tasks;
+  if(activeFilter==='open')list=tasks.filter(t=>!t.done);
+  if(activeFilter==='done')list=tasks.filter(t=>t.done);
+  if(activeFilter==='urgent')list=tasks.filter(t=>!t.done&&t.priority==='urgent');
+  if(activeFilter==='recurring')list=tasks.filter(t=>t.recurring);
+  const el=$('task-list');if(!el)return;
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-ico">'+(activeFilter==='done'?'🎉':'📋')+'</div><div>Geen taken gevonden</div></div>';return;}
+  el.innerHTML=list.map((t,i)=>{
+    const c=cc(t.client),rev=(t.hours||0)*(t.rate||0);
+    const sd=(t.subtasks||[]).filter(s=>s.d).length,st=(t.subtasks||[]).length;
+    return `<div class="tc ${t.priority} ${t.done?'done':''} ${t.recurring?'recurring':''}" style="animation-delay:${i*.04}s" onclick="openTask(${t.id})">
+      <button class="chk ${t.done?'on':''}" onclick="event.stopPropagation();toggleDone(${t.id})">✓</button>
+      <div class="tb">
+        <div class="tn">${t.name}</div>
+        <div class="ts">
+          <span class="tag" style="background:${c.bg};color:${c.tx}">${t.client}</span>
+          <span class="tsm">🕐${t.time}</span>
+          ${st?`<span class="tsm">✦${sd}/${st}</span>`:''}
+          ${t.hours?`<span class="tsm">${t.hours}u</span>`:''}
+          ${t.recurring?`<span class="tsm" style="color:var(--pur)">🔄</span>`:''}
+        </div>
+      </div>
+      <div class="tr">
+        ${rev>0?`<div class="trev">${fmts(rev)}</div>`:''}
+        <button class="pbtn ${timerTaskId===t.id?'on':''}" onclick="event.stopPropagation();startById(${t.id})">▶</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setFilter(f,btn){activeFilter=f;document.querySelectorAll('#task-filters .ftab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTasks();}
+
+async function toggleDone(id){
+  const t=tasks.find(t=>t.id===id);if(!t)return;
+  t.done=!t.done;
+  await saveTask(t,false);
+  if(t.done&&t.hours&&t.rate){
+    const logEntry={client:t.client,desc:t.name,hours:t.hours,rate:t.rate,date:today(),revenue:t.hours*t.rate};
+    const saved=await saveLogEntry(logEntry);
+    if(saved)hourLog.unshift({id:saved.id,...logEntry});
+    renderTasks();
+    toast('✓ '+fmts(t.hours*t.rate)+' geboekt!');
+    setTimeout(()=>openInvAfterTask(t),600);
+  } else if(!t.done){
+    // Verwijder log van vandaag voor deze taak
+    const logItem=hourLog.find(l=>l.desc===t.name&&l.client===t.client&&l.date===today());
+    if(logItem){await deleteLogDb(logItem.id);hourLog=hourLog.filter(l=>l.id!==logItem.id);}
+    renderTasks();toast('Taak heropend');
+  } else {renderTasks();toast('✓ Afgerond');}
+  renderStats();
+}
+
+// Offer to send invoice after completing a task
+let _iatTask=null;
+function openInvAfterTask(t){
+  _iatTask=t;
+  const rev=(t.hours||0)*(t.rate||0);
+  se('iat-task-name',t.name);
+  se('iat-task-client',t.client+' · '+t.hours+'u × €'+t.rate+'/u');
+  se('iat-task-rev',fmts(rev));
+  // Pre-fill email from client
+  const cl=clients.find(c=>c.name===t.client);
+  $('iat-email').value=cl?.email||'';
+  $('iat-desc').value=t.name;
+  openSheet('inv-after');
+}
+
+async function createInvFromTaskUI(){
+  if(!_iatTask)return;
+  const t=_iatTask;
+  const email=$('iat-email').value;
+  const desc=$('iat-desc').value||t.name;
+  const rawBtw=$('iat-btw').value;
+  const btw=rawBtw==='0'?0:parseFloat(rawBtw)||21;
+  const invObj={type:'invoice',client:t.client,email,desc,
+    lines:[{desc,hours:t.hours||1,rate:t.rate||0}],
+    btw,status:'open',date:todayFull(),
+    num:'2026-'+p2(nIid++),recurring:false
+  };
+  const saved=await saveInvoice(invObj,true);
+  invoices.unshift({...invObj,id:saved?.id||'tmp-'+Date.now()});
+  closeSheet('inv-after');
+  if(email){
+    setTimeout(()=>{
+      if(confirm('Factuur aangemaakt! Wil je hem nu mailen naar '+email+'?')){
+        mailInvById(invoices[0].id);
+      }
+    },300);
+  } else {toast('✓ Factuur aangemaakt');}
+  renderInvoicesPage();
+}
+
+// TASK SHEET
+function openAddTask(){
+  editTaskId=null;shSubs=[];selPrio='medium';taskRec=false;
+  se('sh-task-ttl','Nieuwe taak');
+  ['t-name','t-note'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  $('t-time').value='09:00';$('t-hours').value='';$('t-rate').value='';
+  $('t-rev-calc').textContent='€0';
+  $('del-task-btn').style.display='none';
+  $('rec-tog').className='toggle';$('rec-opts').style.display='none';
+  se('rec-sub','Eenmalig');
+  setPrio('medium');fillSels();renderShSubs();
+  openSheet('task');setTimeout(()=>$('t-name').focus(),400);
+}
+
+function openTask(id){
+  const t=tasks.find(t=>t.id===id);if(!t)return;
+  editTaskId=id;shSubs=[...(t.subtasks||[]).map(s=>({...s}))];taskRec=t.recurring||false;
+  se('sh-task-ttl','Taak bewerken');
+  $('t-name').value=t.name;$('t-time').value=t.time;
+  $('t-hours').value=t.hours||'';$('t-rate').value=t.rate||'';
+  $('t-note').value=t.note||'';
+  $('del-task-btn').style.display='flex';
+  $('rec-tog').className='toggle'+(taskRec?' on':'');
+  $('rec-opts').style.display=taskRec?'block':'none';
+  se('rec-sub',taskRec?'Actief':'Eenmalig');
+  if(t.recurFreq)$('t-freq').value=t.recurFreq;
+  setPrio(t.priority);fillSels();$('t-client').value=t.client;
+  calcRev();renderShSubs();openSheet('task');
+}
+
+function toggleRec(){taskRec=!taskRec;$('rec-tog').className='toggle'+(taskRec?' on':'');$('rec-opts').style.display=taskRec?'block':'none';se('rec-sub',taskRec?'Actief':'Eenmalig');}
+function calcRev(){const h=parseFloat($('t-hours').value)||0,r=parseFloat($('t-rate').value)||0;$('t-rev-calc').textContent=fmts(h*r);}
+function setPrio(p){selPrio=p;$('pb-u').className='pb'+(p==='urgent'?' u':'');$('pb-m').className='pb'+(p==='medium'?' m':'');$('pb-l').className='pb'+(p==='low'?' l':'');}
+function renderShSubs(){$('t-subs').innerHTML=shSubs.map((s,i)=>`<div class="subtask"><button class="sub-chk ${s.d?'on':''}" onclick="shSubs[${i}].d=!shSubs[${i}].d;renderShSubs()">✓</button><span style="flex:1;font-size:13px;color:var(--tx2);${s.d?'text-decoration:line-through;color:var(--mu)':''}">${s.t}</span><button onclick="shSubs.splice(${i},1);renderShSubs()" style="border:none;background:none;color:var(--mu);font-size:14px;padding:2px">✕</button></div>`).join('');}
+function addSub(){const v=($('sub-inp').value||'').trim();if(!v)return;shSubs.push({t:v,d:false});$('sub-inp').value='';renderShSubs();}
+
+async function saveTaskUI(){
+  const name=($('t-name').value||'').trim();if(!name){toast('Vul een taaknaam in');return;}
+  const freq=$('t-freq').value;
+  const obj={name,client:$('t-client').value,time:$('t-time').value||'09:00',hours:parseFloat($('t-hours').value)||0,rate:parseFloat($('t-rate').value)||0,note:$('t-note').value,priority:selPrio,subtasks:shSubs,recurring:taskRec,recurFreq:taskRec?freq:null,done:false};
+  if(editTaskId){
+    obj.id=editTaskId;obj.done=tasks.find(t=>t.id===editTaskId)?.done||false;
+    await saveTask(obj,false);
+    Object.assign(tasks.find(t=>t.id===editTaskId),obj);
+  } else {
+    const saved=await saveTask(obj,true);
+    if(saved){tasks.unshift({...obj,id:saved.id});}
+    else{tasks.unshift({...obj,id:'tmp-'+Date.now()});}
+  }
+  closeSheet('task');renderTasks();toast(editTaskId?'✓ Taak opgeslagen':'✦ Taak toegevoegd');
+}
+async function deleteTaskUI(){
+  if(!editTaskId||!confirm('Taak verwijderen?'))return;
+  await deleteTaskDb(editTaskId);
+  tasks=tasks.filter(t=>t.id!==editTaskId);
+  closeSheet('task');renderTasks();toast('Verwijderd');
+}
+
+// TIMER
+function startById(id){const t=tasks.find(t=>t.id===id);if(!t)return;timerTaskId=id;se('t-nm',t.name);se('t-nm-d',t.name);tAct('reset-soft');tAct('start');renderTasks();toast('▶ Timer: '+t.name);}
+function tAct(a){
+  const btn=$('t-start');
+  if(a==='start'){if(timerRunning)return;timerRunning=true;if(btn)btn.textContent='⏸ Actief';timerIv=setInterval(()=>{timerSec++;updTimer();},1000);}
+  else if(a==='pause'){timerRunning=false;clearInterval(timerIv);if(btn)btn.textContent='▶ Hervat';}
+  else if(a==='reset'||a==='reset-soft'){timerRunning=false;clearInterval(timerIv);timerSec=0;if(btn)btn.textContent='▶ Start';if(a==='reset'){timerTaskId=null;se('t-nm','Tik ▶ bij een taak om te starten');se('t-nm-d','Tik ▶ bij een taak om te starten');renderTasks();}updTimer();}
+}
+function updTimer(){
+  const h=Math.floor(timerSec/3600),m=Math.floor((timerSec%3600)/60),s=timerSec%60;
+  const disp=h>0?`${p2(h)}:${p2(m)}:${p2(s)}`:`${p2(m)}:${p2(s)}`;
+  const pct=Math.min(timerSec/(2*3600)*100,100)+'%';
+  se('t-disp',disp);
+  const tf=$('t-fill');if(tf)tf.style.width=pct;
+  se('t-disp-d',disp);
+  const tfd=$('t-fill-d');if(tfd)tfd.style.width=pct;
+}
+
+// ═══════════════════════════════════════════════════
+// WEEK
+// ═══════════════════════════════════════════════════
+function getWeekStart(off){const n=new Date(),dow=n.getDay()||7,m=new Date(n);m.setDate(n.getDate()-dow+1+off*7);return m;}
+function getWeekNum(d){const j=new Date(d.getFullYear(),0,1);return Math.ceil(((d-j)/86400000+j.getDay()+1)/7);}
+function shiftWeek(dir){weekOffset+=dir;renderWeekPage();}
+
+function renderWeekPage(){
+  const ms=getWeekStart(weekOffset);
+  se('week-title','Week '+getWeekNum(ms)+' · '+ms.getFullYear());
+  const td=today(),days=['Ma','Di','Wo','Do','Vr','Za','Zo'];
+  let dSel=null;
+  $('week-strip').innerHTML=days.map((nm,i)=>{
+    const d=new Date(ms);d.setDate(ms.getDate()+i);
+    const ds=p2(d.getDate())+'-'+p2(d.getMonth()+1);
+    const isT=ds===td&&weekOffset===0;
+    const isSel=selDay?selDay===ds:(isT&&!dSel?(dSel=ds,true):false);
+    const logs=hourLog.filter(l=>l.date===ds);
+    return `<div class="wday ${isT?'today':''} ${isSel?'sel':''}" onclick="selectDay('${ds}',this)">
+      <div class="wdn">${nm}</div><div class="wdnum">${d.getDate()}</div>
+      <div class="wdlbl">${logs.length?logs.length+'x log':'—'}</div>
+    </div>`;
+  }).join('');
+  if(!selDay&&dSel)selDay=dSel;
+  renderLogList(selDay||td);
+}
+
+function selectDay(ds,el){selDay=ds;document.querySelectorAll('.wday').forEach(w=>w.classList.remove('sel'));el.classList.add('sel');renderLogList(ds);}
+
+function renderLogList(ds){
+  se('log-ttl',ds?'Log · '+ds:'Urenlog');
+  const logs=ds?hourLog.filter(l=>l.date===ds):hourLog;
+  const el=$('log-list');if(!el)return;
+  if(!logs.length){el.innerHTML='<div class="empty"><div class="empty-ico">⏱</div><div>Geen uren gelogd'+(ds?' op '+ds:'')+'</div></div>';return;}
+  const tot=logs.reduce((s,l)=>s+l.revenue,0);
+  el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot" style="background:${cc(l.client).col}"></div><div class="log-body"><div class="log-nm">${l.desc}</div><div class="log-meta">${l.client} · ${l.hours}u${l.rate?' · €'+l.rate+'/u':''}</div></div><div class="log-amt">${fmts(l.revenue)}</div><button class="log-del" onclick="delLog(${l.id})">✕</button></div>`).join('')+
+    `<div style="display:flex;justify-content:space-between;padding:10px 12px;background:var(--acl);border-radius:10px;margin-top:6px"><span style="font-weight:600;font-size:13px;color:var(--tx2)">Totaal ${ds}</span><span style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--ac)">${fmts(tot)}</span></div>`;
+}
+async function delLog(id){
+  await deleteLogDb(id);
+  hourLog=hourLog.filter(l=>l.id!==id);
+  renderLogList(selDay);renderStats();toast('Log verwijderd');
+}
+function openLogSheet(){fillSels();['log-desc','log-hours','log-rate'].forEach(id=>{const el=$(id);if(el)el.value='';});se('log-rev','€0');openSheet('log');}
+function calcLogRev(){const h=parseFloat($('log-hours').value)||0,r=parseFloat($('log-rate').value)||0;se('log-rev',fmts(h*r));}
+async function saveLog(){
+  const client=$('log-client').value,desc=($('log-desc').value||'').trim()||'Gewerkte uren';
+  const hours=parseFloat($('log-hours').value)||0,rate=parseFloat($('log-rate').value)||0;
+  if(!hours){toast('Vul uren in');return;}
+  const ds=selDay||today();
+  const logObj={client,desc,hours,rate,date:ds,revenue:hours*rate};
+  const saved=await saveLogEntry(logObj);
+  if(saved)hourLog.unshift({id:saved.id,...logObj});
+  closeSheet('log');renderLogList(ds);renderStats();toast('✓ '+hours+'u — '+fmts(hours*rate));
+}
+
+// ═══════════════════════════════════════════════════
+// CLIENTS
+// ═══════════════════════════════════════════════════
+function renderClientsPage(){
+  const el=$('client-cards');if(!el)return;
+  el.innerHTML=clients.map((c,i)=>{
+    const col=cc(c.name);
+    const logRev=hourLog.filter(l=>l.client===c.name).reduce((s,l)=>s+l.revenue,0);
+    const logHrs=hourLog.filter(l=>l.client===c.name).reduce((s,l)=>s+l.hours,0);
+    const open=tasks.filter(t=>t.client===c.name&&!t.done).length;
+    return `<div class="ccard">
+      <div class="cc-hd"><div class="cc-av" style="background:${col.bg}">${c.emoji||'🏢'}</div><div style="flex:1"><div class="cc-nm">${c.name}</div><div class="cc-tp">${c.type||'—'}</div></div><button class="btn btn-ghost btn-sm" onclick="openClientSheet(${i})">✏</button></div>
+      <div class="cc-stats">
+        <div class="cs"><div class="csv" style="color:${col.col}">€${c.rate}</div><div class="csl">Uurtarief</div></div>
+        <div class="cs"><div class="csv">${logHrs.toFixed(1)}u</div><div class="csl">Gelogd</div></div>
+        <div class="cs"><div class="csv" style="color:var(--ac)">${fmts(logRev)}</div><div class="csl">Omzet</div></div>
+      </div>
+      <div class="cc-act">
+        ${c.email?`<button class="btn btn-ghost btn-sm" style="flex:1" onclick="window.location.href='mailto:${c.email}'">✉ Mail</button>`:''}
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="setFilter('open',document.querySelectorAll('#task-filters .ftab')[1]);goPage('today',document.getElementById('bn-today'),'Vandaag')">Taken (${open})</button>
+        <button class="btn btn-ac btn-sm" onclick="newInvClient('${c.name}')">Factuur</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function newInvClient(name){goPage('invoices',document.getElementById('bn-invoices'),'Facturen');setTimeout(()=>{openNewInv();$('inv-client').value=name;prefillInvClient();},300);}
+function openClientSheet(idx){
+  editClIdx=idx!=null?idx:null;
+  se('sh-cl-ttl',idx!=null?'Klant bewerken':'Klant toevoegen');
+  $('del-cl-btn').style.display=idx!=null?'flex':'none';
+  if(idx!=null){const c=clients[idx];$('cl-name').value=c.name;$('cl-type').value=c.type||'';$('cl-email').value=c.email||'';$('cl-rate').value=c.rate||'';$('cl-emoji').value=c.emoji||'';}
+  else{['cl-name','cl-type','cl-email','cl-rate','cl-emoji'].forEach(id=>{const el=$(id);if(el)el.value='';});}
+  openSheet('client');
+}
+async function saveClientUI(){
+  const name=($('cl-name').value||'').trim();if(!name){toast('Vul naam in');return;}
+  const obj={name,type:$('cl-type').value,email:$('cl-email').value,rate:parseFloat($('cl-rate').value)||0,emoji:$('cl-emoji').value||'🏢'};
+  if(editClIdx!=null){
+    obj.id=clients[editClIdx].id;
+    await saveClient(obj,false);
+    clients[editClIdx]={...clients[editClIdx],...obj};
+  } else {
+    const saved=await saveClient(obj,true);
+    clients.push({...obj,id:saved?.id||'tmp-'+Date.now()});
+  }
+  closeSheet('client');fillSels();renderClientsPage();renderStats();toast('✓ Klant opgeslagen');
+}
+async function deleteClientUI(){
+  if(editClIdx==null||!confirm('Klant verwijderen?'))return;
+  const id=clients[editClIdx].id;
+  await deleteClientDb(id);
+  clients.splice(editClIdx,1);
+  closeSheet('client');fillSels();renderClientsPage();toast('Verwijderd');
+}
+
+// ═══════════════════════════════════════════════════
+// INVOICES
+// ═══════════════════════════════════════════════════
+function setInvF(f,btn){activeInvFilter=f;document.querySelectorAll('#inv-filters .ftab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInvoicesPage();}
+
+function renderInvoicesPage(){
+  renderStats();
+  const el=$('inv-list');if(!el)return;
+  let list=invoices;
+  if(activeInvFilter==='invoice')list=invoices.filter(i=>i.type==='invoice');
+  if(activeInvFilter==='quote')list=invoices.filter(i=>i.type==='quote');
+  if(activeInvFilter==='paid')list=invoices.filter(i=>i.status==='paid');
+  if(activeInvFilter==='open')list=invoices.filter(i=>i.status==='open');
+  if(activeInvFilter==='late')list=invoices.filter(i=>i.status==='late');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-ico">📄</div><div>Geen facturen gevonden</div></div>';return;}
+  const sl={paid:'b-paid',open:'b-open',late:'b-late'},tl={paid:'Betaald',open:'Openstaand',late:'Te laat'},tp={invoice:'Factuur',quote:'Offerte'};
+  el.innerHTML=list.map(inv=>`<div class="inv-card">
+    <div class="inv-hd"><div>
+      <div class="inv-num">${tp[inv.type]||'Factuur'} · ${inv.num}</div>
+      <div class="inv-client">${inv.client}</div>
+      <div class="inv-desc">${inv.desc}</div>
+      ${inv.recurring?`<div class="rec-badge">🔄 ${inv.recurFreq||'maandelijks'}</div>`:''}
+    </div><span class="badge ${sl[inv.status]||'b-open'}">${tl[inv.status]||'Openstaand'}</span></div>
+    <div class="inv-ft">
+      <div>
+        <div class="inv-amt">${fmts(invTotal(inv))}</div>
+        <div style="font-size:10px;color:var(--mu);margin-top:1px">excl. BTW: ${fmts(invSubtotal(inv))}</div>
+      </div>
+      <div class="inv-date">${inv.date}</div>
+    </div>
+    <div class="inv-act">
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openInvSheet(${inv.id})">✏ Bewerken</button>
+      <button class="btn btn-ghost btn-sm" onclick="downloadInvPdf(${inv.id})" title="Download PDF">📥 PDF</button>
+      ${inv.status==='late'?`<button class="btn btn-dan btn-sm" onclick="sendReminder(${inv.id})">📤</button>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="mailInvById(${inv.id})">✉</button>
+      ${inv.status!=='paid'?`<button class="btn btn-ac btn-sm" onclick="markPaid(${inv.id})">✓</button>`:''}
+    </div>
+  </div>`).join('');
+}
+
+function openNewInv(){
+  editInvId=null;invLines=[{desc:'',hours:1,rate:95}];invRec=false;
+  se('sh-inv-ttl','Nieuwe factuur');$('del-inv-btn').style.display='none';
+  $('inv-type').value='invoice';$('inv-status').value='open';
+  $('inv-desc').value='';$('inv-btw').value='21';
+  $('inv-rec-tog').className='toggle';$('inv-rec-opts').style.display='none';
+  se('inv-rec-sub','Eenmalig');
+  fillSels();renderInvLines();renderInvPreview();openSheet('inv');
+}
+
+function openInvSheet(id){
+  const inv=invoices.find(i=>i.id===id);if(!inv)return;
+  editInvId=id;invLines=[...(inv.lines||[]).map(l=>({...l}))];invRec=inv.recurring||false;
+  se('sh-inv-ttl','Factuur bewerken');$('del-inv-btn').style.display='flex';
+  $('inv-type').value=inv.type||'invoice';$('inv-status').value=inv.status||'open';
+  $('inv-desc').value=inv.desc||'';$('inv-btw').value=String(inv.btw??21);
+  $('inv-rec-tog').className='toggle'+(invRec?' on':'');
+  $('inv-rec-opts').style.display=invRec?'block':'none';
+  se('inv-rec-sub',invRec?'Actief':'Eenmalig');
+  if(inv.recurFreq)$('inv-freq').value=inv.recurFreq;
+  fillSels();$('inv-client').value=inv.client;$('inv-email').value=inv.email||'';
+  renderInvLines();renderInvPreview();openSheet('inv');
+}
+
+function toggleInvRec(){invRec=!invRec;$('inv-rec-tog').className='toggle'+(invRec?' on':'');$('inv-rec-opts').style.display=invRec?'block':'none';se('inv-rec-sub',invRec?'Actief':'Eenmalig');}
+
+function prefillInvClient(){
+  const name=$('inv-client').value,c=clients.find(c=>c.name===name);
+  $('inv-email').value=c?c.email:'';
+  if(invLines.length===1&&!invLines[0].desc){invLines[0].rate=c?c.rate:95;renderInvLines();}
+  renderInvPreview();
+}
+
+function addInvLine(){const c=clients.find(c=>c.name===$('inv-client').value);invLines.push({desc:'',hours:1,rate:c?c.rate:95});renderInvLines();renderInvPreview();}
+
+function renderInvLines(){
+  $('inv-lines').innerHTML=invLines.map((l,i)=>`<div class="inv-line-row">
+    <input placeholder="Omschrijving" value="${l.desc||''}" oninput="invLines[${i}].desc=this.value;renderInvPreview()" style="flex:2">
+    <input type="number" placeholder="u" value="${l.hours||''}" oninput="invLines[${i}].hours=parseFloat(this.value)||0;renderInvPreview()" style="width:46px;text-align:center">
+    <input type="number" placeholder="€/u" value="${l.rate||''}" oninput="invLines[${i}].rate=parseFloat(this.value)||0;renderInvPreview()" style="width:56px;text-align:center">
+    <button class="inv-line-del" onclick="invLines.splice(${i},1);renderInvLines();renderInvPreview()">✕</button>
+  </div>`).join('');
+}
+
+function renderInvPreview(){
+  const client=($('inv-client')||{}).value||'Klantnaam';
+  const email=($('inv-email')||{}).value||'';
+  const type=($('inv-type')||{}).value||'invoice';
+  const rawBtw=($('inv-btw')||{}).value;
+  // BTW FIX: explicit 0% handling
+  const btwPct=rawBtw===''?21:(rawBtw==='0'?0:parseFloat(rawBtw)||21);
+  const sub=invLines.reduce((s,l)=>s+(l.hours||0)*(l.rate||0),0);
+  const btw=sub*(btwPct/100),total=sub+btw;
+  const now=new Date(),ds=p2(now.getDate())+'-'+p2(now.getMonth()+1)+'-'+now.getFullYear();
+  const prev=$('inv-preview');if(!prev)return;
+  prev.innerHTML=`<div class="ip-hd">
+    <div><div class="ip-logo">${profile?.name||'Bedrijfsnaam'}</div><div style="font-size:10px;color:#888;margin-top:2px">${profile?.adres||''}</div><div style="font-size:10px;color:#888">${profile?.email||''}</div></div>
+    <div style="text-align:right"><div class="ip-title">${type==='quote'?'OFFERTE':'FACTUUR'}</div><div style="font-size:10px;color:#888;margin-top:2px">Nr: ${editInvId?invoices.find(i=>i.id===editInvId)?.num||'—':'2026-'+p2(nIid)}</div><div style="font-size:10px;color:#888">Datum: ${ds}</div></div>
+  </div>
+  <div style="margin-bottom:10px"><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">Aan:</div><div style="font-weight:700;font-size:13px;color:#1a1916">${client}</div>${email?`<div style="font-size:10px;color:#888">${email}</div>`:''}</div>
+  <table class="ip-table"><thead><tr><th>Omschrijving</th><th>u</th><th>Tarief</th><th style="text-align:right">Bedrag</th></tr></thead>
+  <tbody>${invLines.map(l=>`<tr><td>${l.desc||'—'}</td><td>${l.hours||0}</td><td>€${l.rate||0}/u</td><td style="text-align:right">${fmts((l.hours||0)*(l.rate||0))}</td></tr>`).join('')}</tbody></table>
+  <div class="ip-row"><span style="color:#888">Subtotaal</span><span style="color:#1a1916">${fmts(sub)}</span></div>
+  <div class="ip-row"><span style="color:#888">BTW ${btwPct}%</span><span style="color:#1a1916">${fmts(btw)}</span></div>
+  <div class="ip-total"><span class="ip-total-lbl">Totaal</span><span class="ip-total-amt">${fmts(total)}</span></div>
+  <div style="margin-top:8px;font-size:10px;color:#888;border-top:1px solid #e4dfd8;padding-top:8px">Betaling binnen ${profile?.days||30} dagen · IBAN: ${profile?.iban||'—'} · KVK: ${profile?.kvk||'—'}</div>`;
+}
+
+async function saveInvoiceUI(){
+  const client=$('inv-client').value,email=$('inv-email').value;
+  const desc=$('inv-desc').value||invLines[0]?.desc||'Werkzaamheden';
+  const type=$('inv-type').value,status=$('inv-status').value;
+  const rawBtw=$('inv-btw').value;
+  const btw=rawBtw===''?21:(rawBtw==='0'?0:parseFloat(rawBtw)||21);
+  const freq=$('inv-freq').value;
+  if(!invLines.length){toast('Voeg een regel toe');return;}
+  const invObj={type,client,email,desc,lines:[...invLines],btw,status,date:todayFull(),num:(type==='quote'?'2026-Q':'2026-')+p2(nIid),recurring:invRec,recurFreq:invRec?freq:null};
+  if(editInvId){
+    invObj.id=editInvId;
+    await saveInvoice(invObj,false);
+    Object.assign(invoices.find(i=>i.id===editInvId),invObj);
+  } else {
+    nIid++;
+    const saved=await saveInvoice(invObj,true);
+    invoices.unshift({...invObj,id:saved?.id||'tmp-'+Date.now()});
+  }
+  closeSheet('inv');renderInvoicesPage();toast('✓ '+(type==='quote'?'Offerte':'Factuur')+' opgeslagen');
+}
+async function deleteInvoiceUI(){
+  if(!editInvId||!confirm('Verwijderen?'))return;
+  await deleteInvoiceDb(editInvId);
+  invoices=invoices.filter(i=>i.id!==editInvId);
+  closeSheet('inv');renderInvoicesPage();toast('Verwijderd');
+}
+async function markPaid(id){
+  const inv=invoices.find(i=>i.id===id);
+  if(inv){
+    inv.status='paid';
+    await saveInvoice(inv,false);
+    renderInvoicesPage();renderStats();toast('✓ Betaald');
+  }
+}
+
+function mailCurrentInv(){
+  const email=($('inv-email')||{}).value;if(!email){toast('Geen e-mailadres');return;}
+  const rawBtw=$('inv-btw').value,btwPct=rawBtw===''?21:(rawBtw==='0'?0:parseFloat(rawBtw)||21);
+  const sub=invLines.reduce((s,l)=>s+(l.hours||0)*(l.rate||0),0),total=sub*(1+btwPct/100);
+  const type=$('inv-type').value==='quote'?'offerte':'factuur';
+  const sj=encodeURIComponent(type.charAt(0).toUpperCase()+type.slice(1)+' van '+(profile?.name||''));
+  const bd=encodeURIComponent('Beste,\n\nHierbij mijn '+type+'.\n\nTotaal incl. BTW ('+btwPct+'%): '+fmts(total)+'\n\nGelieve binnen '+(profile?.days||30)+' dagen te betalen.\nIBAN: '+(profile?.iban||'—')+'\n\nMet vriendelijke groet,\n'+(profile?.name||'')+'\n'+(profile?.email||''));
+  window.location.href='mailto:'+email+'?subject='+sj+'&body='+bd;
+}
+function mailInvById(id){
+  const inv=invoices.find(i=>i.id===id);if(!inv||!inv.email){toast('Geen e-mail');return;}
+  const type=inv.type==='quote'?'offerte':'factuur',total=invTotal(inv);
+  const sj=encodeURIComponent(type.charAt(0).toUpperCase()+type.slice(1)+' '+inv.num+' — '+(profile?.name||''));
+  const bd=encodeURIComponent('Beste,\n\nHierbij '+type+' '+inv.num+'.\n\nKlant: '+inv.client+'\nOmschrijving: '+inv.desc+'\nTotaal incl. BTW: '+fmts(total)+'\n\nBetaling binnen '+(profile?.days||30)+' dagen · IBAN: '+(profile?.iban||'—')+'\n\nMet vriendelijke groet,\n'+(profile?.name||'')+'\n'+(profile?.email||''));
+  window.location.href='mailto:'+inv.email+'?subject='+sj+'&body='+bd;
+}
+
+// ═══════════════════════════════════════════════════
+// EXPENSES
+// ═══════════════════════════════════════════════════
+function renderExpensesPage(){
+  renderStats();
+  let list=expenses;
+  if(activeExpFilter!=='all')list=expenses.filter(e=>e.cat===activeExpFilter);
+  const el=$('exp-list');if(!el)return;
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-ico">💸</div><div>Geen uitgaven</div></div>';return;}
+  el.innerHTML=list.map(e=>`<div class="exp-card">
+    <div class="exp-icon" style="background:${EXP_BG[e.cat]||'#f0ede8'}">${e.cat.split(' ')[0]}</div>
+    <div class="exp-body">
+      <div class="exp-nm">${e.desc}${e.recurring?` <span style="color:var(--pur);font-size:10px">🔄</span>`:''}</div>
+      <div class="exp-meta">${e.cat} · ${e.date}${e.client?' · '+e.client:''}${e.aftrekbaar?' · <span style="color:var(--ac)">✓ aftrekbaar</span>':''}${e.receipt?' · <span style="color:var(--inf)">📎 bon</span>':''}</div>
+    </div>
+    <div class="exp-amt">${fmt2(e.amount)}</div>
+    <button class="exp-del" onclick="openExpSheet(${e.id})">✏</button>
+  </div>`).join('');
+}
+
+function setExpF(f,btn){activeExpFilter=f;document.querySelectorAll('#exp-filters .ftab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderExpensesPage();}
+
+function openExpSheet(idOrNone){
+  const id=typeof idOrNone==='number'?idOrNone:null;
+  const exp=id!=null?expenses.find(e=>e.id===id):null;
+  editExpId=id;expAftrek=exp?exp.aftrekbaar!==false:true;expRec=exp?exp.recurring||false:false;
+  currentReceipt=exp?.receipt||'';
+  se('sh-exp-ttl',exp?'Uitgave bewerken':'Nieuwe uitgave');
+  $('del-exp-btn').style.display=exp?'flex':'none';
+  $('exp-desc').value=exp?exp.desc:'';$('exp-amount').value=exp?exp.amount:'';
+  const t=new Date().toISOString().slice(0,10);
+  if(exp?.date){const p=exp.date.split('-');$('exp-date').value=p.length===3&&p[2].length===4?`${p[2]}-${p[1]}-${p[0]}`:t;}
+  else{$('exp-date').value=t;}
+  $('exp-cat').value=exp?exp.cat:'💻 Software';
+  $('exp-aftrek-tog').className='toggle'+(expAftrek?' on':'');
+  $('exp-rec-tog').className='toggle'+(expRec?' on':'');
+  $('exp-rec-opts').style.display=expRec?'block':'none';
+  se('exp-rec-sub',expRec?'Actief':'Eenmalig');
+  if(exp?.recurFreq)$('exp-freq').value=exp.recurFreq;
+  // Receipt
+  if(currentReceipt){$('receipt-img').src=currentReceipt;$('receipt-preview').style.display='block';$('receipt-placeholder').style.display='none';}
+  else{$('receipt-preview').style.display='none';$('receipt-placeholder').style.display='block';}
+  $('receipt-inp').value='';
+  fillSels();if(exp?.client)$('exp-client').value=exp.client;
+  openSheet('exp');
+}
+function toggleExpAftrek(){expAftrek=!expAftrek;$('exp-aftrek-tog').className='toggle'+(expAftrek?' on':'');}
+function toggleExpRec(){expRec=!expRec;$('exp-rec-tog').className='toggle'+(expRec?' on':'');$('exp-rec-opts').style.display=expRec?'block':'none';se('exp-rec-sub',expRec?'Actief':'Eenmalig');}
+
+async function saveExpense(){
+  const desc=($('exp-desc').value||'').trim();if(!desc){toast('Vul omschrijving in');return;}
+  const amount=parseFloat($('exp-amount').value)||0;if(!amount){toast('Vul bedrag in');return;}
+  const dv=$('exp-date').value,p=dv.split('-');
+  const date=p.length===3?`${p[2]}-${p[1]}-${p[0]}`:dv;
+  const cat=$('exp-cat').value,client=$('exp-client').value||'',freq=$('exp-freq').value;
+  const obj={desc,amount,cat,date,client,aftrekbaar:expAftrek,recurring:expRec,recurFreq:expRec?freq:null,receipt:currentReceipt||null};
+  if(editExpId!=null){
+    obj.id=editExpId;
+    await saveExpenseDb(obj,false);
+    Object.assign(expenses.find(e=>e.id===editExpId),obj);
+  } else {
+    const saved=await saveExpenseDb(obj,true);
+    expenses.unshift({...obj,id:saved?.id||'tmp-'+Date.now()});
+  }
+  closeSheet('exp');renderExpensesPage();renderStats();toast('✓ Uitgave opgeslagen');
+}
+async function deleteExpense(){
+  if(editExpId==null||!confirm('Verwijderen?'))return;
+  await deleteExpenseDb(editExpId);
+  expenses=expenses.filter(e=>e.id!==editExpId);
+  closeSheet('exp');renderExpensesPage();renderStats();toast('Verwijderd');
+}
+
+// ═══════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════
+function openSheet_prof(){
+  $('p-naam').value=profile.name||'';$('p-tag').value=profile.tag||'';
+  $('p-email').value=profile.email||'';$('p-tel').value=profile.tel||'';
+  $('p-adres').value=profile.adres||'';$('p-iban').value=profile.iban||'';
+  $('p-kvk').value=profile.kvk||'';$('p-btw-nr').value=profile.btw||'';
+  $('p-days').value=profile.days||30;
+}
+async function saveProfileUI(){
+  profile.name=$('p-naam').value||profile.name;profile.tag=$('p-tag').value||profile.tag;
+  profile.email=$('p-email').value;profile.tel=$('p-tel').value;
+  profile.adres=$('p-adres').value;profile.iban=$('p-iban').value;
+  profile.kvk=$('p-kvk').value;profile.btw=$('p-btw-nr').value;
+  profile.days=parseInt($('p-days').value)||30;
+  await saveProfile();
+  closeSheet('prof');renderProfilePage();toast('✓ Profiel opgeslagen');
+}
+function renderProfilePage(){
+  se('prof-nm',profile.name||'Mijn Bedrijf');se('prof-tag',profile.tag||"Freelancer & ZZP'er");
+  if(profile.logo){$('prof-emoji').style.display='none';const img=$('prof-img');img.src=profile.logo;img.style.display='block';}
+  const fields=[['📧',profile.email||'—','E-mail'],['📞',profile.tel||'—','Telefoon'],['🏠',profile.adres||'—','Adres'],['🏦',profile.iban||'—','IBAN'],['📋','KVK: '+(profile.kvk||'—'),'KVK'],['📊','BTW: '+(profile.btw||'—'),'BTW'],['⏳',(profile.days||30)+' dagen','Betaaltermijn']];
+  $('prof-details').innerHTML=fields.map(([ico,val,lbl])=>`<div class="prof-detail"><div class="prof-ico">${ico}</div><div><div class="prof-val">${val}</div><div class="prof-lbl-s">${lbl}</div></div></div>`).join('');
+  renderRevBreakdown('rev-breakdown');renderMiniChart();renderStats();
+}
+async function handleLogo(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async ev=>{profile.logo=ev.target.result;await saveProfile();renderProfilePage();toast('✓ Logo opgeslagen');};
+  r.readAsDataURL(f);
+}
+
+function renderRevBreakdown(elId='rev-breakdown'){
+  const el=$(elId);if(!el)return;
+  const total=monthRev();
+  if(!total){el.innerHTML='<div style="color:var(--mu);font-size:13px;text-align:center;padding:10px">Vink taken af om omzet te registreren</div>';return;}
+  const byC={};
+  hourLog.forEach(l=>{byC[l.client]=(byC[l.client]||0)+l.revenue;});
+  tasks.filter(t=>t.done).forEach(t=>{byC[t.client]=(byC[t.client]||0)+(t.hours||0)*(t.rate||0);});
+  el.innerHTML=Object.entries(byC).map(([name,rev])=>`<div class="rb-row"><div class="rb-top"><span class="rb-nm">${name}</span><span class="rb-amt">${fmts(rev)}</span></div><div class="rb-track"><div class="rb-fill" style="width:${total?Math.round(rev/total*100):0}%;background:${cc(name).col}"></div></div></div>`).join('');
+}
+function renderMiniChart(){
+  const el=$('mini-chart');if(!el)return;
+  const months=[{m:'Jan',v:3200},{m:'Feb',v:4100},{m:'Mrt',v:3750},{m:'Apr',v:Math.max(monthRev(),50),cur:true}];
+  const maxV=Math.max(...months.map(d=>d.v));
+  el.innerHTML=months.map(d=>`<div class="bar-col"><div class="bar-v">${fmts(d.v).replace('€','')}</div><div class="bar-f ${d.cur?'cur':''}" style="height:${Math.round(d.v/maxV*80)}px"></div><div class="bar-l">${d.m}</div></div>`).join('');
+}
+function openGoalSheet(){$('goal-inp').value=profile.goal||6000;openSheet('goal');}
+async function saveGoal(){const g=parseInt($('goal-inp').value||'0');if(g>0){profile.goal=g;await saveProfile();closeSheet('goal');renderStats();renderProfilePage();toast('✓ Doel: €'+g.toLocaleString('nl-NL'));}}
+
+// SIDEBAR DATE
+function renderSidebarDate(){
+  const n=new Date();
+  const days=['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'];
+  const months=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  se('sb-wd',days[n.getDay()]);se('sb-day',n.getDate());se('sb-mo',months[n.getMonth()]+' '+n.getFullYear());
+}
+
+// ═══════════════════════════════════════════════════
+// PAGES & SHEETS
+// ═══════════════════════════════════════════════════
+function goPage(page,btn,title){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg=$('page-'+page);if(pg)pg.classList.add('active');
+  // Bottom nav
+  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  // Sidebar
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  const sbItem=$('sb-'+page);if(sbItem)sbItem.classList.add('active');
+  // Title
+  se('tb-title',title||page);
+  // FAB
+  const fab=$('fab');if(fab)fab.style.display=page==='today'?'flex':'none';
+  // Mobile timer visibility
+  if(page==='week'){weekOffset=0;selDay=null;renderWeekPage();}
+  if(page==='clients')renderClientsPage();
+  if(page==='invoices')renderInvoicesPage();
+  if(page==='expenses')renderExpensesPage();
+  if(page==='profile')renderProfilePage();
+}
+
+function openSheet(n){
+  if(n==='prof')openSheet_prof();
+  const ov=$('ov-'+n),sh=$('sh-'+n);
+  if(ov)ov.classList.add('open');
+  if(sh)sh.classList.add('open');
+}
+function closeSheet(n){
+  const ov=$('ov-'+n),sh=$('sh-'+n);
+  if(ov)ov.classList.remove('open');
+  if(sh)sh.classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════
+// AI — MET API KEY INVOER
+// ═══════════════════════════════════════════════════
+function getApiKey(){return uGet('api-key')||lsGet('dt-api-key')||'';}
+function saveApiKey(){
+  const k=($('api-key-inp').value||'').trim();
+  if(!k.startsWith('sk-')){toast('Vul een geldige API key in (begint met sk-)');return;}
+  uSet('api-key',k);lsSet('dt-api-key',k);
+  $('api-key-banner').style.display='none';
+  $('api-key-inp').value='';
+  toast('✓ API key opgeslagen! Stel nu een vraag.');
+}
+
+function openAI(){
+  $('ai-ov').classList.add('open');
+  // Toon banner als geen API key
+  const hasKey=!!getApiKey();
+  $('api-key-banner').style.display=hasKey?'none':'block';
+  setTimeout(()=>$('ai-inp').focus(),300);
+}
+function closeAI(){$('ai-ov').classList.remove('open');}
+function qp(text){$('ai-inp').value=text;askAI();}
+
+async function askAI(){
+  const inp=$('ai-inp'),area=$('chat-area');
+  const q=(inp.value||'').trim();if(!q)return;
+
+  const apiKey=getApiKey();
+  if(!apiKey){
+    $('api-key-banner').style.display='block';
+    toast('Voer eerst je Anthropic API key in');
+    return;
+  }
+
+  area.querySelector('.ph')?.remove();
+  aiHistory.push({role:'user',content:q});inp.value='';
+  const um=Object.assign(document.createElement('div'),{className:'msg u',textContent:q});
+  area.appendChild(um);
+  const ty=document.createElement('div');ty.className='typing';
+  ty.innerHTML='<div class="td"></div><div class="td"></div><div class="td"></div>';
+  area.appendChild(ty);area.scrollTop=area.scrollHeight;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:500,
+        system:`Je bent een persoonlijke AI-bedrijfsassistent in Dagtaak voor Nederlandse ZZP'ers. Geef praktisch, direct advies. Max 4 zinnen. In het Nederlands.
+
+Context van ${currentUser?.name||'gebruiker'}:
+- Bedrijf: ${profile?.name||'—'}
+- Open taken: ${tasks.filter(t=>!t.done).map(t=>'"'+t.name+'" ('+t.client+', '+t.priority+')').join(', ')||'geen'}
+- Afgerond: ${tasks.filter(t=>t.done).map(t=>t.name).join(', ')||'geen'}
+- Omzet april: ${fmts(monthRev())} (doel: ${fmts(profile?.goal||6000)})
+- Uitgaven: ${fmts(totalExp())} | Netto: ${fmts(netProfit())}
+- Openstaande facturen: ${invoices.filter(i=>i.status==='open').length} | Te laat: ${invoices.filter(i=>i.status==='late').length}`,
+        messages:aiHistory
+      })
+    });
+    const data=await res.json();
+    if(data.error){
+      throw new Error(data.error.message||'API fout');
+    }
+    const reply=data?.content?.[0]?.text||'Geen antwoord ontvangen.';
+    aiHistory.push({role:'assistant',content:reply});
+    ty.remove();
+    const am=Object.assign(document.createElement('div'),{className:'msg ai',textContent:reply});
+    area.appendChild(am);
+  }catch(e){
+    ty.remove();
+    const errMsg=e.message||'Onbekende fout';
+    const em=Object.assign(document.createElement('div'),{className:'msg ai'});
+    em.style.color='var(--dan)';
+    em.textContent='Fout: '+errMsg+'. Controleer je API key en probeer opnieuw.';
+    area.appendChild(em);
+    // Toon api key banner opnieuw als auth fout
+    if(errMsg.includes('api-key')||errMsg.includes('auth')||errMsg.includes('401')){
+      uSet('api-key','');lsSet('dt-api-key','');
+      $('api-key-banner').style.display='block';
+    }
+  }
+  area.scrollTop=area.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════
+// PDF FACTUUR DOWNLOAD
+// ═══════════════════════════════════════════════════
+function downloadInvPdf(id){
+  const inv=invoices.find(i=>i.id===id);if(!inv)return;
+  const sub=invSubtotal(inv);
+  const rawBtw=inv.btw;
+  const btwPct=rawBtw===''?21:(rawBtw==='0'||rawBtw===0?0:parseFloat(rawBtw)||21);
+  const btw=sub*(btwPct/100),total=sub+btw;
+  const type=inv.type==='quote'?'OFFERTE':'FACTUUR';
+  const html=`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+<title>${type} ${inv.num}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#1a1916;background:#fff;padding:40px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:3px solid #2d6a4f}
+.logo{font-size:22px;font-weight:700;color:#2d6a4f;letter-spacing:-0.5px}
+.co-info{font-size:10px;color:#666;margin-top:4px;line-height:1.6}
+.doc-title{font-size:22px;font-weight:700;color:#1a1916;text-align:right}
+.doc-meta{font-size:10px;color:#666;text-align:right;margin-top:4px;line-height:1.8}
+.section{margin-bottom:24px}
+.sec-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#999;margin-bottom:4px}
+.klant-nm{font-size:15px;font-weight:700}
+.klant-info{font-size:10px;color:#666;line-height:1.6}
+table{width:100%;border-collapse:collapse;margin-bottom:16px}
+thead th{background:#f4f2ee;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#666;padding:8px 10px;border-bottom:2px solid #e4dfd8}
+tbody td{padding:10px 10px;border-bottom:1px solid #f0ede8;font-size:12px;color:#4a4740;vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+.totals{width:260px;margin-left:auto}
+.tot-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;color:#4a4740}
+.tot-final{display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #2d6a4f;margin-top:6px;font-weight:700;font-size:16px;color:#2d6a4f}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e4dfd8;font-size:10px;color:#999;line-height:1.8}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700}
+.paid{background:#e8f5ee;color:#1b4332}.open{background:#fdf6e8;color:#b07d2a}.late{background:#fdf0ee;color:#c0392b}
+@media print{body{padding:20px}.no-print{display:none}}
+</style></head><body>
+<div class="hd">
+  <div>
+    <div class="logo">${profile?.name||'Bedrijfsnaam'}</div>
+    <div class="co-info">
+      ${profile?.adres||''}<br>
+      ${profile?.email||''}${profile?.tel?' · '+profile.tel:''}<br>
+      KVK: ${profile?.kvk||'—'} · BTW: ${profile?.btw||'—'}
+    </div>
+  </div>
+  <div>
+    <div class="doc-title">${type}</div>
+    <div class="doc-meta">
+      Nummer: <strong>${inv.num}</strong><br>
+      Datum: ${inv.date}<br>
+      Vervaldatum: ${calcDueDate(inv.date,profile?.days||30)}<br>
+      <span class="status-badge ${inv.status}">${{paid:'Betaald',open:'Openstaand',late:'Te laat'}[inv.status]||inv.status}</span>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-lbl">Aan:</div>
+  <div class="klant-nm">${inv.client}</div>
+  <div class="klant-info">${inv.email||''}</div>
+</div>
+<table>
+  <thead><tr><th style="width:50%">Omschrijving</th><th>Uren</th><th>Tarief</th><th style="text-align:right">Bedrag</th></tr></thead>
+  <tbody>
+    ${(inv.lines||[]).map(l=>`<tr><td>${l.desc||inv.desc||'—'}</td><td>${l.hours||0}</td><td>€ ${(l.rate||0).toFixed(2)}/u</td><td style="text-align:right">€ ${((l.hours||0)*(l.rate||0)).toFixed(2)}</td></tr>`).join('')}
+  </tbody>
+</table>
+<div class="totals">
+  <div class="tot-row"><span>Subtotaal</span><span>€ ${sub.toFixed(2)}</span></div>
+  <div class="tot-row"><span>BTW ${btwPct}%</span><span>€ ${btw.toFixed(2)}</span></div>
+  <div class="tot-final"><span>Totaal</span><span>€ ${total.toFixed(2)}</span></div>
+</div>
+<div class="footer">
+  Gelieve te betalen binnen ${profile?.days||30} dagen op:<br>
+  IBAN: <strong>${profile?.iban||'—'}</strong> · t.n.v. ${profile?.name||'—'}<br>
+  Vermeld bij betaling: ${inv.num}
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+  const w=window.open('','_blank');
+  w.document.write(html);w.document.close();
+  toast('📥 PDF geopend — gebruik Afdrukken → Opslaan als PDF');
+}
+
+function calcDueDate(dateStr,days){
+  try{
+    const p=dateStr.split('-');
+    const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+    d.setDate(d.getDate()+days);
+    return p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear();
+  }catch(e){return '—';}
+}
+
+// BTW kwartaal export
+function downloadBtwOverzicht(){
+  const paidInvs=invoices.filter(i=>i.status==='paid'&&i.type==='invoice');
+  let csv='Factuur nr;Datum;Klant;Omschrijving;Excl. BTW;BTW %;BTW bedrag;Incl. BTW\n';
+  paidInvs.forEach(inv=>{
+    const sub=invSubtotal(inv),btwPct=parseFloat(inv.btw)||21,btw=sub*(btwPct/100);
+    csv+=`${inv.num};${inv.date};${inv.client};${inv.desc};€${sub.toFixed(2)};${btwPct}%;€${btw.toFixed(2)};€${(sub+btw).toFixed(2)}\n`;
+  });
+  const totSub=paidInvs.reduce((s,i)=>s+invSubtotal(i),0);
+  const totBtw=paidInvs.reduce((s,i)=>s+(invSubtotal(i)*(parseFloat(i.btw)||21)/100),0);
+  csv+=`\nTOTAAL;;;Betaalde facturen;€${totSub.toFixed(2)};;€${totBtw.toFixed(2)};€${(totSub+totBtw).toFixed(2)}\n`;
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`BTW-overzicht-${new Date().getFullYear()}.csv`;
+  a.click();toast('📥 BTW-overzicht gedownload');
+}
+
+// ═══════════════════════════════════════════════════
+// BONNETJES
+// ═══════════════════════════════════════════════════
+let currentReceipt='';
+function handleReceipt(e){
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>5*1024*1024){toast('Foto te groot (max 5MB)');return;}
+  const r=new FileReader();
+  r.onload=ev=>{
+    currentReceipt=ev.target.result;
+    $('receipt-img').src=currentReceipt;
+    $('receipt-preview').style.display='block';
+    $('receipt-placeholder').style.display='none';
+  };
+  r.readAsDataURL(f);
+}
+function removeReceipt(){
+  currentReceipt='';
+  $('receipt-img').src='';
+  $('receipt-preview').style.display='none';
+  $('receipt-placeholder').style.display='block';
+  $('receipt-inp').value='';
+}
+
+// ═══════════════════════════════════════════════════
+// SUB-FREELANCER SYSTEEM
+// ═══════════════════════════════════════════════════
+function openSubFreelancerSheet(){
+  const existing=uGet('invite-code');
+  $('sub-invite-code').value=existing||'Klik op genereren ↓';
+  renderSubMembers();openSheet('sub-fl');
+}
+function genInviteCode(){
+  const code='DT-'+Math.random().toString(36).substr(2,6).toUpperCase();
+  uSet('invite-code',code);
+  const codes=lsGet('dt-invite-codes')||{};
+  codes[code]={owner:currentUser.email,ownerName:currentUser.name,bedrijf:profile?.name||currentUser.bedrijf,clients:clients.map(c=>c.name),created:Date.now()};
+  lsSet('dt-invite-codes',codes);
+  $('sub-invite-code').value=code;
+  toast('✓ Code: '+code);
+}
+function copyInviteCode(){
+  const code=$('sub-invite-code').value;
+  if(!code||code.includes('Klik')){toast('Genereer eerst een code');return;}
+  navigator.clipboard?.writeText(code).then(()=>toast('📋 Gekopieerd!')).catch(()=>{$('sub-invite-code').select();document.execCommand('copy');toast('📋 Gekopieerd!');});
+}
+function joinAsSubFreelancer(){
+  const code=($('sub-join-code').value||'').trim().toUpperCase();
+  if(!code.startsWith('DT-')){toast('Ongeldige code');return;}
+  const codes=lsGet('dt-invite-codes')||{};
+  const entry=codes[code];
+  if(!entry){toast('Code niet gevonden');return;}
+  if(entry.owner===currentUser.email){toast('Dat is je eigen code!');return;}
+  const members=lsGet('dt-members-'+entry.owner)||[];
+  if(!members.find(m=>m.email===currentUser.email)){
+    members.push({email:currentUser.email,name:currentUser.name,joined:Date.now()});
+    lsSet('dt-members-'+entry.owner,members);
+  }
+  const myLinks=uGet('sub-links')||[];
+  if(!myLinks.find(l=>l.code===code)){
+    myLinks.push({code,ownerEmail:entry.owner,ownerName:entry.ownerName,bedrijf:entry.bedrijf,clients:entry.clients});
+    uSet('sub-links',myLinks);
+  }
+  closeSheet('sub-fl');toast('✓ Gekoppeld aan '+entry.ownerName+'!');renderSubLinks();
+}
+function renderSubMembers(){
+  const members=lsGet('dt-members-'+(currentUser?.email||''))||[];
+  const el=$('sub-members-list');if(!el)return;
+  if(!members.length){el.innerHTML='<div style="font-size:12px;color:var(--mu);text-align:center;padding:8px">Nog geen sub-freelancers gekoppeld</div>';return;}
+  el.innerHTML=`<div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:8px">Gekoppelde freelancers</div>`+
+    members.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--sf2);border-radius:10px;margin-bottom:6px"><div style="width:32px;height:32px;border-radius:8px;background:var(--purl);color:var(--pur);display:flex;align-items:center;justify-content:center;font-weight:700">${m.name.charAt(0)}</div><div><div style="font-size:13px;font-weight:600;color:var(--tx)">${m.name}</div><div style="font-size:11px;color:var(--mu)">${m.email}</div></div></div>`).join('');
+}
+function renderSubLinks(){
+  const myLinks=uGet('sub-links')||[];
+  if(!myLinks.length)return;
+  const extraClients=[];
+  myLinks.forEach(link=>{
+    (link.clients||[]).forEach(cName=>{
+      if(!clients.find(c=>c.name===cName)){extraClients.push({name:cName+' ('+link.bedrijf+')',type:'Via '+link.ownerName,emoji:'🔗',email:'',rate:0});}
+    });
+  });
+  if(extraClients.length){
+    const o=clients.map(c=>`<option>${c.name}</option>`).join('')+extraClients.map(c=>`<option>${c.name}</option>`).join('');
+    ['t-client','inv-client','log-client'].forEach(id=>{const el=$(id);if(el)el.innerHTML=o;});
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ═══════════════════════════════════════════════════
+const ADMIN_CODE='dagtaak-admin-2026';
+let adminUnlocked=false;
+function tryOpenAdmin(){
+  if(adminUnlocked){openAdmin();return;}
+  const code=prompt('Admin toegangscode:');
+  if(code===ADMIN_CODE){adminUnlocked=true;openAdmin();}
+  else if(code!==null){toast('Onjuiste code');}
+}
+function openAdmin(){renderAdminDashboard();$('admin-ov').classList.add('open');}
+function closeAdmin(){$('admin-ov').classList.remove('open');}
+function renderAdminDashboard(){
+  const allUsers=getUsers(),userList=Object.values(allUsers);
+  const userStats=userList.map(u=>{
+    const t2=lsGet(`dt-${u.email}-tasks`)||[];
+    const inv=lsGet(`dt-${u.email}-invoices`)||[];
+    const paidRev=inv.filter(i=>i.status==='paid').reduce((s,i)=>s+(i.lines||[]).reduce((ss,l)=>ss+(l.hours||0)*(l.rate||0),0),0);
+    const plan=lsGet('dt-plan-'+u.email)||'free';
+    const last=lsGet('dt-last-'+u.email)||0;
+    return {...u,tc:t2.length,ic:inv.length,paidRev,plan,last};
+  }).sort((a,b)=>b.last-a.last);
+  const paid=userStats.filter(u=>u.plan==='pro');
+  const el=$('admin-content');if(!el)return;
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    <div class="sc"><div class="sc-v g">${userList.length}</div><div class="sc-l">Gebruikers</div></div>
+    <div class="sc"><div class="sc-v o">${paid.length}</div><div class="sc-l">Pro abonnees</div></div>
+    <div class="sc"><div class="sc-v b">${fmts(paid.length*6.99)}</div><div class="sc-l">MRR</div></div>
+    <div class="sc"><div class="sc-v p">${userStats.filter(u=>u.last>Date.now()-7*86400000).length}</div><div class="sc-l">Actief (7d)</div></div>
+  </div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px">Gebruikers</div>
+  ${userStats.map(u=>`<div style="background:var(--sf2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--br)">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+      <div><div style="font-weight:700;font-size:13px;color:var(--tx)">${u.name}</div><div style="font-size:11px;color:var(--mu)">${u.email}</div></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:${u.plan==='pro'?'#e8f5ee':'var(--wrnl)'};color:${u.plan==='pro'?'#1b4332':'var(--wrn)'}">${u.plan==='pro'?'PRO':'Gratis'}</span>
+        <button onclick="adminTogglePlan('${u.email}')" style="padding:3px 9px;border-radius:7px;border:1px solid var(--br2);background:var(--sf);color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer">${u.plan==='pro'?'→ Gratis':'→ Pro'}</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;font-size:11px;color:var(--mu);flex-wrap:wrap">
+      <span>📋 ${u.tc} taken</span><span>📄 ${u.ic} facturen</span><span>💰 ${fmts(u.paidRev)}</span>
+      <span>🕐 ${u.last?new Date(u.last).toLocaleDateString('nl-NL'):'nooit'}</span>
+    </div>
+  </div>`).join('')}
+  <div style="margin-top:16px;padding:14px;background:var(--acl);border-radius:12px;border:1px solid #b7dfc8">
+    <div style="font-size:12px;color:var(--ac);font-weight:700;margin-bottom:6px">🚀 Volgende stappen</div>
+    <div style="font-size:12px;color:var(--tx2);line-height:1.8">
+      • Stripe integratie → echte betalingen<br>
+      • Supabase/Firebase → data over meerdere devices<br>
+      • Admin toegang: Shift+Alt+A of typ 'admin' in console
+    </div>
+  </div>`;
+}
+function adminTogglePlan(email){
+  const cur=lsGet('dt-plan-'+email)||'free';
+  lsSet('dt-plan-'+email,cur==='pro'?'free':'pro');
+  // Update badge in account sheet
+  const badge=$('acc-plan-badge');
+  if(badge&&currentUser?.email===email){
+    const np=lsGet('dt-plan-'+email);
+    badge.textContent=np==='pro'?'✦ Pro abonnee':'Gratis plan';
+    badge.style.background=np==='pro'?'var(--acl)':'var(--wrnl)';
+    badge.style.color=np==='pro'?'var(--ac)':'var(--wrn)';
+  }
+  toast('✓ Plan gewijzigd');renderAdminDashboard();
+}
+document.addEventListener('keydown',e=>{if(e.shiftKey&&e.altKey&&e.key==='A')tryOpenAdmin();});
+function trackLogin(email){lsSet('dt-last-'+email,Date.now());}
+
+function tickClock(){const n=new Date();se('clock',p2(n.getHours())+':'+p2(n.getMinutes()));}
+function toast(msg){const t=$('toast');se('toast-msg',msg);t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2800);}
+
+// ═══════════════════════════════════════════════════
+// BOOT — Supabase Auth Listener
+// ═══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',async function(){
+  tickClock();setInterval(tickClock,30000);
+
+  // Dark mode restore
+  isDark=lsGet('dt-dark')||false;
+  if(isDark){document.documentElement.setAttribute('data-theme','dark');try{$('dark-btn').textContent='☀️';}catch(e){}}
+
+  // Supabase auth state listener
+  db.auth.onAuthStateChange(async(event,session)=>{
+    console.log('Auth event:',event);
+
+    if(event==='SIGNED_OUT'||(!session&&event!=='INITIAL_SESSION')){
+      currentUser=null;
+      profile=null;clients=[];tasks=[];hourLog=[];invoices=[];expenses=[];
+      $('app-wrap').classList.remove('visible');
+      $('ob-wrap').classList.add('hidden');
+      $('auth-wrap').classList.remove('hidden');
+      return;
+    }
+
+    if(session&&session.user){
+      currentUser=session.user;
+      $('auth-wrap').classList.add('hidden');
+
+      // Toon app alleen als die nog niet zichtbaar is
+      const appVisible=$('app-wrap').classList.contains('visible');
+      if(!appVisible){
+        const obDone=lsGet('dt-ob-'+currentUser.id);
+        if(!obDone){
+          obIdx=0;
+          $('ob-wrap').classList.remove('hidden');
+          // Laad data alvast voor profiel formulier
+          await loadData();
+          renderOnboarding();
+        } else {
+          await showApp();
+        }
+      }
+    }
+  });
+
+  // Check bestaande sessie bij laden
+  const {data:{session}}=await db.auth.getSession();
+  if(!session){
+    $('auth-wrap').classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
