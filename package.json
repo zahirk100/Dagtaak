@@ -1,0 +1,9 @@
+{
+  "name": "dagtaak",
+  "version": "1.0.0",
+  "description": "Dagtaak - AI Planner voor ZZP'ers",
+  "dependencies": {
+    "stripe": "^14.0.0",
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
